@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LayeredZylo Tuner</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; background:#0a0618; color:#dfe6ff; font:13px/1.5 system-ui,sans-serif; display:flex; height:100vh; overflow:hidden; }
+  #stage { flex:1; display:flex; align-items:center; justify-content:center; position:relative;
+           background:radial-gradient(circle at 50% 45%, #17103a 0%, #05030f 70%); }
+  #zyloMount { width:560px; height:560px; }
+  .zylo-rig { position:relative; width:560px; height:560px; display:block; }
+  .zylo-layer { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; pointer-events:none; }
+  .zl-ship{z-index:1} .zl-dashboard{z-index:2} .zl-body{z-index:3} .zl-arm-left{z-index:4}
+  .zl-arm-right{z-index:5} .zl-eyes{z-index:6} .zl-mouth{z-index:7} .zl-antenna{z-index:8}
+  .zl-cockpit{z-index:9} .zl-glow{z-index:10}
+  #refimg { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; pointer-events:none; z-index:99; opacity:0; }
+  #panel { width:400px; background:#120c26; border-left:1px solid #2c2350; overflow-y:auto; padding:14px 16px 40px; }
+  h1 { font-size:15px; margin:0 0 4px; color:#7df9ff; }
+  .hint { color:#8e86b8; font-size:11.5px; margin:0 0 12px; }
+  fieldset { border:1px solid #2c2350; border-radius:8px; margin:0 0 9px; padding:7px 10px 9px; }
+  legend { color:#ff8ad8; font-weight:600; padding:0 6px; font-size:12px; }
+  .row { display:grid; grid-template-columns:16px 1fr 64px; gap:8px; align-items:center; margin:3px 0; }
+  input[type=range] { width:100%; }
+  .val { font-family:ui-monospace,monospace; font-size:11px; color:#9ef; text-align:right; }
+  button { background:#2a1f55; color:#dfe6ff; border:1px solid #4a3a8a; border-radius:6px;
+           padding:7px 12px; cursor:pointer; font-size:12px; margin:2px 4px 2px 0; }
+  button:hover { background:#3a2b72; }
+  textarea { width:100%; height:210px; background:#07040f; color:#9ef; border:1px solid #2c2350;
+             border-radius:6px; font-family:ui-monospace,monospace; font-size:10.5px; padding:8px; margin-top:6px; }
+  .toprow { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .tog { font-size:10px; color:#8e86b8; font-weight:400; margin-left:6px; }
+  .num { width:58px; background:#07040f; color:#9ef; border:1px solid #2c2350;
+         border-radius:4px; font-family:ui-monospace,monospace; font-size:11px; padding:2px 4px; }
+</style>
+</head>
+<body>
+
+<div id="stage"><div id="zyloMount"></div></div>
+
+<div id="panel">
+  <h1>LayeredZylo Tuner</h1>
+  <p class="hint">Put this file where index.html lives, so <code>img/Zylo/...</code> and
+  <code>LayeredZylo.js</code> both resolve. It drives the real component, so what renders here
+  is what the game renders. Drag, then Copy constants and paste over the TUNE THESE block.</p>
+
+  <div class="toprow">
+    <label><input type="checkbox" id="showref"> reference overlay</label>
+    <input type="range" id="refop" min="0" max="100" value="45" style="flex:1">
+  </div>
+
+  <div id="controls"></div>
+
+  <button id="copy">Copy constants</button>
+  <button id="reset">Reset</button>
+  <textarea id="out" readonly></textarea>
+</div>
+
+<script src="LayeredZylo.js"></script>
+<script>
+const NAMES = {
+  SHIP:'SHIP_OFFSET', DASHBOARD:'DASHBOARD_OFFSET', BODY:'BODY_OFFSET',
+  LEFT_ARM:'LEFT_ARM_OFFSET', RIGHT_ARM:'RIGHT_ARM_OFFSET', EYES:'EYES_OFFSET',
+  MOUTH:'MOUTH_OFFSET', ANTENNA:'ANTENNA_OFFSET', GLASS:'GLASS_OFFSET',
+  THRUSTER_GLOW:'THRUSTER_GLOW_OFFSET'
+};
+const ORDER = ['SHIP','DASHBOARD','BODY','LEFT_ARM','RIGHT_ARM','EYES','MOUTH','ANTENNA','GLASS','THRUSTER_GLOW'];
+const O = LayeredZylo.offsets;
+const DEF = JSON.parse(JSON.stringify(O));
+const SL = {};
+const controls = document.getElementById('controls');
+const out = document.getElementById('out');
+
+const rig = document.querySelector('.zylo-rig');
+const ref = document.createElement('img');
+ref.id = 'refimg';
+ref.src = LayeredZylo.assetBase + 'Reference/reference.png';
+ref.onerror = function () { ref.dataset.missing = '1'; };
+if (rig) rig.appendChild(ref);
+
+ORDER.forEach(function (k) {
+  SL[k] = {};
+  const fs = document.createElement('fieldset');
+  fs.innerHTML = '<legend>' + NAMES[k] +
+    ' <label class="tog"><input type="checkbox" data-solo="' + k + '"> solo</label>' +
+    ' <label class="tog"><input type="checkbox" data-hide="' + k + '"> hide</label></legend>';
+  [['x', -60, 60, .01], ['y', -60, 60, .01], ['s', .02, 2, .0005]].forEach(function (cfg) {
+    const p = cfg[0];
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = '<span>' + p + '</span><input type="range" min="' + cfg[1] +
+                    '" max="' + cfg[2] + '" step="' + cfg[3] + '" value="' + O[k][p] +
+                    '"><input class="num" type="number" step="' + cfg[3] + '" value="' + O[k][p] + '">';
+    const sl = row.querySelector('input[type=range]'), vv = row.querySelector('.num');
+    function set(v) {
+      if (isNaN(v)) return;
+      O[k][p] = v; sl.value = v; vv.value = v; refresh();
+    }
+    sl.addEventListener('input', function () { set(parseFloat(sl.value)); });
+    vv.addEventListener('input', function () { set(parseFloat(vv.value)); });
+    SL[k][p] = { sl: sl, vv: vv };
+    fs.appendChild(row);
+  });
+  controls.appendChild(fs);
+});
+
+function visibility() {
+  const solo = Array.prototype.filter
+    .call(document.querySelectorAll('[data-solo]'), function (c) { return c.checked; })
+    .map(function (c) { return c.dataset.solo; });
+  const hide = Array.prototype.filter
+    .call(document.querySelectorAll('[data-hide]'), function (c) { return c.checked; })
+    .map(function (c) { return c.dataset.hide; });
+  LayeredZylo.layers.forEach(function (L) {
+    const el = document.querySelector('.' + L.cls);
+    if (!el) return;
+    let show = solo.length ? solo.indexOf(L.key) !== -1 : true;
+    if (hide.indexOf(L.key) !== -1) show = false;
+    el.style.display = show ? '' : 'none';
+  });
+}
+
+function refresh() {
+  LayeredZylo.apply();
+  visibility();
+  out.value = ORDER.map(function (k) {
+    const o = O[k];
+    const pad = (NAMES[k] + ' ').padEnd(22);
+    return '  var ' + pad + '= { x: ' + o.x.toFixed(2).padStart(6) +
+           ', y: ' + o.y.toFixed(2).padStart(7) + ', s: ' + o.s.toFixed(4) + ' };';
+  }).join('\n');
+}
+
+document.getElementById('showref').addEventListener('change', function (e) {
+  ref.style.opacity = e.target.checked ? document.getElementById('refop').value / 100 : 0;
+  if (e.target.checked && ref.dataset.missing) {
+    alert('reference.png not found under ' + LayeredZylo.assetBase + 'Reference/');
+  }
+});
+document.getElementById('refop').addEventListener('input', function (e) {
+  if (document.getElementById('showref').checked) ref.style.opacity = e.target.value / 100;
+});
+document.getElementById('copy').addEventListener('click', function () {
+  out.select();
+  if (navigator.clipboard) navigator.clipboard.writeText(out.value).catch(function () {});
+});
+document.addEventListener('change', function (e) {
+  if (e.target.dataset && (e.target.dataset.solo || e.target.dataset.hide)) visibility();
+});
+document.getElementById('reset').addEventListener('click', function () {
+  ORDER.forEach(function (k) {
+    ['x', 'y', 's'].forEach(function (p) {
+      O[k][p] = DEF[k][p];
+      SL[k][p].sl.value = O[k][p];
+      SL[k][p].vv.textContent = O[k][p];
+    });
+  });
+  refresh();
+});
+
+refresh();
+</script>
+</body>
+</html>

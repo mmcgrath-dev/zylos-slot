@@ -1,0 +1,145 @@
+/* ============================================================
+   NEBULA — layout and drift for the canvas version
+   ------------------------------------------------------------
+   Full replacement for the old gradient file. Delete that one.
+
+   All the gradients, masks, blend stacking and pulse animations are
+   gone. The pixels come from nebula.js now. What is left here is
+   placement, parallax drift, and the responsive rules.
+
+   nebula.js builds this structure itself, so there is nothing to add
+   to your HTML:
+
+     .nebula-root
+       .nebula-layer.nebula-back
+         canvas.neb-cloud   (texture res, stretched)
+         canvas.neb-stars   (native res, crisp)
+       .nebula-layer.nebula-mid
+       .nebula-layer.nebula-front
+
+   IMPORTANT: .nebula-root is fixed at z-index 0. Your game wrapper
+   needs position and a z-index above it, or the sky will paint over
+   the reels. Something like:
+
+     .game-shell { position: relative; z-index: 1; }
+
+   The old file relied on source order for this and it was fragile.
+   ============================================================ */
+
+.nebula-root {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: paint;
+}
+
+.nebula-layer {
+  position: absolute;
+  opacity: 0;
+  transition: opacity 1.1s ease-out;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+/* nebula.js adds this once the layer has finished generating, so the
+   band fades up instead of popping in mid-load. */
+.nebula-layer.is-ready { opacity: 1; }
+
+.neb-cloud,
+.neb-stars {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------------- placement ----------------
+   Same boxes as the old version, so the band sits where you already
+   had it. Each is wider than the viewport, so the drift never brings
+   an edge into view. */
+
+.nebula-back {
+  left: -24vw;
+  top: -12vh;
+  width: 128vw;
+  height: 96vh;
+  animation: nebDriftBack 152s ease-in-out infinite alternate;
+}
+
+.nebula-mid {
+  left: -14vw;
+  top: -5vh;
+  width: 104vw;
+  height: 76vh;
+  animation: nebDriftMid 124s ease-in-out infinite alternate;
+}
+
+/* The front layer is mostly bright wisps and knots, so it adds light
+   rather than occluding. The other two blend normally, which is what
+   lets their dust lanes read as dark. */
+.nebula-front {
+  left: -8vw;
+  top: 0;
+  width: 78vw;
+  height: 56vh;
+  mix-blend-mode: screen;
+  animation: nebDriftFront 104s ease-in-out infinite alternate;
+}
+
+/* ---------------- drift ----------------
+   Transform only, so this runs on the compositor and costs nothing on
+   the main thread. There is no per-frame JavaScript anywhere in this
+   system once generation finishes.
+
+   The opacity pulse from the old version is deliberately not here. Its
+   own comment said it was shallow enough never to show, so it was
+   paying for something invisible, and animating opacity on a blended
+   full-viewport layer forces a re-composite every frame. */
+
+@keyframes nebDriftBack {
+  from { transform: translate3d(-5vw, 0.8vh, 0) scale(1.02); }
+  to   { transform: translate3d(5vw, -0.8vh, 0) scale(1.05); }
+}
+@keyframes nebDriftMid {
+  from { transform: translate3d(-8vw, -1vh, 0) scale(1.01); }
+  to   { transform: translate3d(8vw, 1vh, 0) scale(1.04); }
+}
+@keyframes nebDriftFront {
+  from { transform: translate3d(-11vw, 1.2vh, 0) scale(1); }
+  to   { transform: translate3d(11vw, -1.2vh, 0) scale(1.03); }
+}
+
+/* ---------------- phones ----------------
+   These now actually apply. In the old file the opacity here was being
+   overridden every frame by the pulse keyframes, because animations
+   outrank normal declarations in the cascade. With the pulse gone,
+   plain opacity works. nebula.js also drops the front layer and the
+   texture resolution below 480px on its own. */
+
+@media (max-width: 480px) {
+  .nebula-back {
+    left: -12vw;
+    top: -8vh;
+    width: 104vw;
+    height: 62vh;
+  }
+  .nebula-back.is-ready { opacity: 0.55; }
+
+  .nebula-mid {
+    left: -8vw;
+    top: -2vh;
+    width: 92vw;
+    height: 50vh;
+  }
+  .nebula-mid.is-ready { opacity: 0.7; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nebula-layer {
+    animation: none !important;
+    transition: none;
+  }
+}

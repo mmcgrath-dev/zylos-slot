@@ -1,0 +1,3600 @@
+/* Bonus Travel Overlay: Highest stacking context */
+/* Starfield canvas drawn by startTravelStars() in game.js */
+/* Zylo: starts small/centered, zooms toward camera, then blasts off screen */
+/* Phase 1: zoom toward camera */
+/* Phase 2: blast off screen (upward, with a tilt for speed) */
+/* Destination planet: grows in from nothing at center */
+/* Travel message text (e.g. "FREE SPINS PLANET") */
+/* ================================
+   FREE SPINS TRIGGER SEQUENCE
+   (shake -> planet takeover -> green bonus scene)
+   ================================ */
+
+@keyframes fsScreenShake {
+  0%   { transform: translate(0, 0); }
+  20%  { transform: translate(-10px, 6px); }
+  40%  { transform: translate(8px, -8px); }
+  60%  { transform: translate(-6px, 5px); }
+  80%  { transform: translate(6px, -4px); }
+  100% { transform: translate(0, 0); }
+}
+
+#app.screen-shake {
+  animation: fsScreenShake 0.45s ease-in-out;
+}
+
+/* Reels fade out during takeover */
+#reels-container.fs-fade-out {
+  opacity: 0;
+  transition: opacity 0.7s ease;
+  pointer-events: none;
+}
+
+#reels-container.fs-fade-in {
+  opacity: 1;
+  transition: opacity 0.9s ease;
+}
+
+/* Warp stars canvas: stars rush toward camera */
+#fsWarpStars {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+#fsWarpStars.active {
+  opacity: 1;
+}
+
+/* Quick white screen flash at the exact moment of activation */
+#fsActivationFlash {
+  position: fixed;
+  inset: 0;
+  z-index: 9390;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.95), rgba(150,255,210,0.3) 40%, transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+#fsActivationFlash.flash {
+  animation: fsFlashPop 0.5s ease-out forwards;
+}
+
+@keyframes fsFlashPop {
+  0%   { opacity: 0; }
+  10%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* "FREE SPINS ACTIVATED" announcement shown during the warp travel */
+#fsActivatedText {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 9400;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+#fsActivatedText.show {
+  opacity: 1;
+}
+
+/* Expanding shockwave ring behind the text */
+.fs-burst-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 4px solid rgba(60, 255, 180, 0.9);
+  box-shadow: 0 0 30px rgba(60, 255, 180, 0.7);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+}
+
+#fsActivatedText.show .fs-burst-ring {
+  animation: fsRingExpand 1.1s cubic-bezier(0.15, 0.8, 0.3, 1) forwards;
+}
+
+@keyframes fsRingExpand {
+  0%   { transform: translate(-50%, -50%) scale(0);  opacity: 1; }
+  70%  { opacity: 0.4; }
+  100% { transform: translate(-50%, -50%) scale(14); opacity: 0; }
+}
+
+.fs-activated-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  transform: scale(0.3) rotate(-6deg);
+  opacity: 0;
+}
+
+#fsActivatedText.show .fs-activated-inner {
+  animation: fsTextBounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+             fsTextPulse 1s ease-in-out 0.6s infinite;
+}
+
+@keyframes fsTextBounceIn {
+  0%   { transform: scale(0.3) rotate(-6deg); opacity: 0; }
+  60%  { transform: scale(1.15) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+@keyframes fsTextPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.05); }
+}
+
+.fs-activated-words {
+  font-family: Orbitron, Arial, sans-serif;
+  font-weight: 900;
+  font-size: 3.4rem;
+  line-height: 1.1;
+  text-align: center;
+  letter-spacing: 4px;
+  color: #fff;
+  text-shadow:
+    0 0 16px rgba(60, 255, 180, 0.95),
+    0 0 32px rgba(60, 255, 180, 0.75),
+    0 0 60px rgba(25, 215, 255, 0.65),
+    0 4px 0 rgba(0, 0, 0, 0.4);
+  -webkit-text-stroke: 1.5px rgba(10, 60, 40, 0.8);
+}
+
+.fs-activated-star {
+  width: 56px;
+  height: 56px;
+  filter: drop-shadow(0 0 14px rgba(255, 215, 0, 0.9));
+}
+
+.fs-activated-star-left {
+  animation: fsStarSpinLeft 1.6s ease-in-out infinite;
+}
+
+.fs-activated-star-right {
+  animation: fsStarSpinRight 1.6s ease-in-out infinite;
+}
+
+@keyframes fsStarSpinLeft {
+  0%, 100% { transform: rotate(-15deg) scale(1); }
+  50%      { transform: rotate(15deg) scale(1.15); }
+}
+
+@keyframes fsStarSpinRight {
+  0%, 100% { transform: rotate(15deg) scale(1); }
+  50%      { transform: rotate(-15deg) scale(1.15); }
+}
+
+/* Spark particles that burst outward at activation */
+.fs-spark {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffe066;
+  box-shadow: 0 0 10px rgba(255, 224, 102, 0.95);
+  z-index: 9395;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: fsSparkBurst 0.9s ease-out forwards;
+}
+
+@keyframes fsSparkBurst {
+  0%   { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) var(--spark-end) scale(0.3); opacity: 0; }
+}
+
+/* ================================
+   JACKPOT TRIGGER SEQUENCE
+   (mirrors free spins, themed gold/fire)
+   ================================ */
+
+/* Hide the normal top row while on the jackpot planet */
+body.jackpot-active .top-bar,
+body.jackpot-active .zylo-stage {
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+/* Full-screen ground scene shown after the jackpot travel sequence ends.
+   Lava landscape lives in the project root as JackpotSurface.png. */
+#jpGroundScene {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1s ease;
+  background-image: url("JackpotSurface.png");
+  background-size: cover;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+}
+
+#jpGroundScene.active {
+  opacity: 1;
+}
+
+/* Reels glow gold while on the jackpot planet */
+body.jackpot-active .reel {
+  box-shadow: 0 0 18px rgba(255, 190, 60, 0.6), 0 0 36px rgba(255, 100, 30, 0.4);
+  border-radius: 10px;
+  transition: box-shadow 0.6s ease;
+}
+
+body.jackpot-active #reels-container {
+  filter: drop-shadow(0 0 20px rgba(255, 170, 40, 0.45));
+}
+
+/* Gold screen flash at the moment of the jackpot */
+#jpActivationFlash {
+  position: fixed;
+  inset: 0;
+  z-index: 9390;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.95), rgba(255,200,80,0.35) 40%, transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+#jpActivationFlash.flash {
+  animation: fsFlashPop 0.5s ease-out forwards;
+}
+
+/* "JACKPOT!" announcement */
+#jpActivatedText {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 9400;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+#jpActivatedText.show {
+  opacity: 1;
+}
+
+.jp-burst-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 4px solid rgba(255, 200, 80, 0.9);
+  box-shadow: 0 0 30px rgba(255, 170, 40, 0.8);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+}
+
+#jpActivatedText.show .jp-burst-ring {
+  animation: fsRingExpand 1.1s cubic-bezier(0.15, 0.8, 0.3, 1) forwards;
+}
+
+.jp-activated-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  transform: scale(0.3) rotate(-6deg);
+  opacity: 0;
+}
+
+#jpActivatedText.show .jp-activated-inner {
+  animation: fsTextBounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+             fsTextPulse 0.9s ease-in-out 0.6s infinite;
+}
+
+.jp-activated-words {
+  font-family: Orbitron, Arial, sans-serif;
+  font-weight: 900;
+  font-size: 4.2rem;
+  line-height: 1.1;
+  text-align: center;
+  letter-spacing: 5px;
+  color: #fff;
+  text-shadow:
+    0 0 18px rgba(255, 220, 90, 0.98),
+    0 0 36px rgba(255, 160, 30, 0.85),
+    0 0 70px rgba(255, 90, 20, 0.7),
+    0 4px 0 rgba(0, 0, 0, 0.45);
+  -webkit-text-stroke: 1.5px rgba(90, 40, 0, 0.8);
+}
+
+.jp-activated-star {
+  width: 64px;
+  height: 64px;
+  filter: drop-shadow(0 0 16px rgba(255, 170, 40, 0.95));
+}
+
+.jp-activated-star-left {
+  animation: fsStarSpinLeft 1.4s ease-in-out infinite;
+}
+
+.jp-activated-star-right {
+  animation: fsStarSpinRight 1.4s ease-in-out infinite;
+}
+
+/* Gold spark particles for the jackpot burst */
+.jp-spark {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ffcc33;
+  box-shadow: 0 0 14px rgba(255, 180, 40, 0.98);
+  z-index: 9395;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: fsSparkBurst 1.1s ease-out forwards;
+}
+
+/* The actual top-left Free Spins planet grows to fill the screen on trigger.
+   Reuses the real planet element/asset, so colorway always matches. */
+.freespins-planet-wrap.fs-grow {
+  z-index: 9001;
+  transition: transform 1.8s cubic-bezier(0.34, 1.2, 0.3, 1), left 1.8s cubic-bezier(0.34, 1.2, 0.3, 1), top 1.8s cubic-bezier(0.34, 1.2, 0.3, 1);
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) scale(10) !important;
+  animation: none !important;
+}
+
+/* When free spins scene is active, hide just the top planet row/title —
+   keep the starfield running so it shows through the transparent sky
+   in the planet artwork, same as normal play */
+body.freespins-active .top-bar,
+body.freespins-active .zylo-stage {
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+/* Free spins planet background artwork (transparent sky lets the
+   existing starfield canvas show through behind it) */
+#fsGroundScene {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1s ease;
+  background-image: url("img/freespins-planet-bg.png");
+  background-size: cover;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+}
+
+#fsGroundScene.active {
+  opacity: 1;
+}
+
+/* Free spins remaining/won banner — only shown during the bonus scene */
+#freeSpinsBanner {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  z-index: 9500;
+  background: rgba(4, 20, 13, 0.85);
+  border: 2px solid rgba(60, 255, 180, 0.7);
+  border-radius: 30px;
+  padding: 10px 26px;
+  font-family: Orbitron, Arial, sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #9dffce;
+  text-shadow: 0 0 8px rgba(60, 255, 180, 0.8);
+  box-shadow: 0 0 20px rgba(60, 255, 180, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+  white-space: nowrap;
+}
+
+#freeSpinsBanner.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+#freeSpinsBanner #freeSpinsCount,
+#freeSpinsBanner #freeSpinsWin {
+  color: #fff;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+}
+
+/* Total Won celebration shown right before returning to normal play */
+#fsTotalWinOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9700;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(2, 12, 8, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+
+#fsTotalWinOverlay.show {
+  opacity: 1;
+}
+
+.fs-total-win-label {
+  font-family: Orbitron, Arial, sans-serif;
+  font-weight: 900;
+  font-size: 1.6rem;
+  letter-spacing: 6px;
+  color: #9dffce;
+  text-shadow: 0 0 14px rgba(60, 255, 180, 0.9);
+}
+
+.fs-total-win-amount {
+  font-family: Orbitron, Arial, sans-serif;
+  font-weight: 900;
+  font-size: 4rem;
+  color: #fff;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.95), 0 0 40px rgba(60, 255, 180, 0.8);
+}
+
+/* Floating "+$X" popup that rises and fades next to the win display */
+.floating-win-popup {
+  position: fixed;
+  z-index: 9600;
+  transform: translate(-50%, 0);
+  font-family: Orbitron, Arial, sans-serif;
+  font-weight: 900;
+  font-size: 1.3rem;
+  color: #ffe066;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.9), 0 0 20px rgba(255, 215, 0, 0.5);
+  pointer-events: none;
+  animation: floatingWinRise 1.4s ease-out forwards;
+}
+
+@keyframes floatingWinRise {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 10px) scale(0.8);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -10px) scale(1.1);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -40px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -60px) scale(1);
+  }
+}
+
+/* Reels glow green once free spins scene is active */
+body.freespins-active .reel {
+  box-shadow: 0 0 18px rgba(60, 255, 180, 0.55), 0 0 36px rgba(25, 215, 255, 0.35);
+  border-radius: 10px;
+  transition: box-shadow 0.6s ease;
+}
+
+body.freespins-active #reels-container {
+  filter: drop-shadow(0 0 20px rgba(60, 255, 180, 0.4));
+}
+
+.zylo-speech {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.75);
+  color: #00ffff;
+  font-weight: 800;
+  font-size: 1rem;
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(0, 255, 255, 0.4);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 20;
+}
+
+.zylo-speech.show {
+  opacity: 1;
+}
+@font-face {
+  font-family: Orbitron;
+  src: local("Orbitron"), local("Arial"); /* fallback */
+}
+
+:root{
+  --bg1:#000010;
+  --bg2:#0a0a2a;
+  --neon:#00ffff;
+  --green:#26ff94;
+  --purple:#a36bff;
+  --red:#ff476f;
+  --blue:#2bbcff;
+}
+/* === Zylo knobs === */
+:root{
+  --zylo-scale: 1;            /* 0.8 (smaller) … 1.4 (bigger) */
+  --zylo-dome: #bff7ff;       /* dome glass color */
+  --zylo-dome-edge: #c7ffff;  /* dome rim line */
+  --zylo-rim-left: #a36bff;   /* saucer gradient left */
+  --zylo-rim-mid: #2bbcff;    /* saucer gradient middle */
+  --zylo-rim-right:#26ff94;   /* saucer gradient right */
+  --zylo-glow: rgba(0,255,255,.55);
+  --zylo-eye: #112;           /* eye dots color */
+  --zylo-light: #00eaff;      /* lights color */
+}
+
+/* quick themes: add class to <body> like body.classList.add('zylo-retro') */
+body.zylo-retro{
+  --zylo-dome: #ffe9a8; --zylo-dome-edge:#ffd46a;
+  --zylo-rim-left:#ff6fb3; --zylo-rim-mid:#ffc36f; --zylo-rim-right:#ffe76b;
+  --zylo-light:#ff9fb5; --zylo-eye:#221;
+}
+body.zylo-neon{
+  --zylo-dome:#d1b4ff; --zylo-dome-edge:#f0d8ff;
+  --zylo-rim-left:#00fff0; --zylo-rim-mid:#00b3ff; --zylo-rim-right:#7b61ff;
+  --zylo-light:#aaffff; --zylo-eye:#0a0a1a;
+}
+
+*{box-sizing:border-box}
+html,body{
+  height:100%;
+}
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #ffffff;
+  /* solid background color (removed tiled stars.png per request) */
+  background: #050319;
+  overflow: hidden; /* No scroll needed without dev panel */
+  overflow-x: hidden;
+}
+
+#app {
+  position: relative;
+  z-index: 2;
+  min-height: 100vh;
+  overflow: hidden; /* hide the edges of the moving bg */
+}
+/* Ensure main background layers are fixed and low in the stacking context
+   (old rules commented out — replaced with more detailed `.space-bg` below) */
+/*
+.space-bg, .planet-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+*/
+
+/* New, layered starfield background for `.space-bg` */
+.space-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+
+  background-color: #020018;
+  background-image:
+    radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.9) 50%, transparent 52%),
+    radial-gradient(1px 1px at 80% 10%, rgba(255,255,255,0.9) 50%, transparent 52%),
+    radial-gradient(1px 1px at 60% 50%, rgba(255,255,255,0.9) 50%, transparent 52%),
+    radial-gradient(1px 1px at 10% 80%, rgba(255,255,255,0.9) 50%, transparent 52%),
+
+    radial-gradient(2px 2px at 40% 20%, rgba(160,210,255,0.7) 50%, transparent 52%),
+    radial-gradient(2px 2px at 90% 40%, rgba(160,210,255,0.7) 50%, transparent 52%),
+    radial-gradient(2px 2px at 30% 60%, rgba(160,210,255,0.7) 50%, transparent 52%),
+    radial-gradient(2px 2px at 70% 90%, rgba(160,210,255,0.7) 50%, transparent 52%),
+
+    radial-gradient(3px 3px at 15% 50%, rgba(255,180,255,0.6) 50%, transparent 52%),
+    radial-gradient(3px 3px at 75% 70%, rgba(255,180,255,0.6) 50%, transparent 52%),
+    radial-gradient(3px 3px at 55% 15%, rgba(255,180,255,0.6) 50%, transparent 52%),
+
+    radial-gradient(4px 4px at 50% 90%, rgba(180,255,220,0.5) 50%, transparent 52%),
+    radial-gradient(4px 4px at 25% 25%, rgba(180,255,220,0.5) 50%, transparent 52%);
+  background-size:
+    300px 300px, 300px 300px, 300px 300px, 300px 300px,
+    400px 400px, 400px 400px, 400px 400px, 400px 400px,
+    500px 500px, 500px 500px, 500px 500px,
+    600px 600px, 600px 600px;
+
+  animation: starDrift 80s linear infinite;
+  /* animation disabled per request */
+  animation: none;
+}
+
+@keyframes starDrift {
+  from {
+    background-position: 0 0, 0 0, 0 0, 0 0;
+  }
+  to {
+    background-position: 0 600px, 0 800px, 0 1000px, 0 1200px;
+  }
+}
+/* Starfield background: use #background-stars id and sit at z-index 0 */
+#background-stars {
+  position: absolute;
+  inset: -80%; /* prevents any edges from showing during drift */
+  z-index: 1;
+  pointer-events: none;
+
+  background-image:
+    /* tiny stars layer 1 */
+    radial-gradient(2px 2px at 10% 20%, rgba(255,255,255,0.9) 0, transparent 55%),
+    radial-gradient(2px 2px at 30% 80%, rgba(230,240,255,0.9) 0, transparent 55%),
+    radial-gradient(2px 2px at 55% 15%, rgba(255,255,255,0.8) 0, transparent 55%),
+    radial-gradient(2px 2px at 80% 40%, rgba(210,230,255,0.8) 0, transparent 55%),
+    radial-gradient(2px 2px at 60% 75%, rgba(255,255,255,0.8) 0, transparent 55%),
+
+    /* tiny stars layer 2 */
+    radial-gradient(2px 2px at 25% 55%, rgba(255,255,255,0.7) 0, transparent 55%),
+    radial-gradient(2px 2px at 75% 90%, rgba(210,230,255,0.7) 0, transparent 55%),
+    radial-gradient(2px 2px at 15% 40%, rgba(255,255,255,0.7) 0, transparent 55%),
+
+    /* medium stars */
+    radial-gradient(4px 4px at 45% 20%, rgba(255,255,255,1) 0, transparent 60%),
+    radial-gradient(6px 6px at 70% 65%, rgba(255,255,255,0.95) 0, transparent 60%),
+
+    /* deep gradient base */
+    radial-gradient(circle at top, #23144b 0, #050318 55%, #01000c 100%);
+
+  background-repeat: repeat;
+
+  background-size:
+    220px 220px, 260px 260px, 240px 240px, 280px 280px, 250px 250px,
+    260px 260px, 300px 300px, 280px 280px,
+    400px 400px, 450px 450px,
+    300% 300%;  /* <<< make gradient huge */
+
+  animation: spaceDrift 40s linear infinite;
+}
+
+/* Dev panel styles */
+#devPanel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(0,0,0,0.65);
+  padding: 10px;
+  border-radius: 10px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: sans-serif;
+}
+
+#devPanel button {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: white;
+  background: #446;
+  transition: 0.2s;
+}
+
+#devPanel button:hover {
+  background: #667;
+}
+
+@keyframes spaceDrift {
+  from { transform: translate(0, 0); }
+  to   { transform: translate(-500px, 300px); } /* same direction as shooting stars */
+}
+
+/* slow drift in same direction as starfield, but slower */
+@keyframes planetDrift {
+  from { transform: translate(0, 0); }
+  to   { transform: translate(-300px, 200px); }
+}
+
+/* --- SHOOTING STARS (top → bottom-left) --- */
+
+.shooting-star {
+  position: fixed;
+  width: 130px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.85), transparent);
+  transform: rotate(-25deg);
+  opacity: 0;
+  z-index: 1; /* Behind all game elements (app is z-index 2) */
+  pointer-events: none;
+  animation: shoot 12s linear infinite;
+}
+
+/* now these control random-ish horizontal spawn positions */
+.shooting-star.star1 {
+  top: -20px;
+  left: 5%;       /* anywhere across the top */
+  animation-delay: 40s;
+}
+
+.shooting-star.star2 {
+  top: -20px;
+  left: 45%;
+  animation-delay: 75s;
+}
+
+.shooting-star.star3 {
+  top: -20px;
+  left: 85%;
+  animation-delay: 110s;
+}
+
+/* shooting motion: down-left, slower, more natural */
+@keyframes shoot {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(-25deg);
+  }
+  5% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-800px, 500px) rotate(-25deg);
+  }
+}
+
+header{
+  display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:12px
+}
+h1{margin:0;font-weight:800;letter-spacing:1px;text-shadow:0 0 8px #3cf}
+.stats{display:flex;align-items:center;gap:12px}
+.stats button{
+  background:transparent;border:1px solid var(--neon);color:var(--neon);
+  padding:4px 10px;border-radius:10px;cursor:pointer
+}
+.stats button:hover{box-shadow:0 0 10px var(--neon) inset}
+
+#slot{
+  display:grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap:6px;
+  background:rgba(0,0,0,0.35);
+  border:2px solid var(--neon);
+  border-radius:16px;
+  padding:8px;
+  box-shadow:0 0 18px rgba(0,255,255,0.25);
+  position: relative;
+  z-index: 10; /* Above shooting stars (z-index: 3) */
+}
+
+.slot-frame {
+  --glow-col: 0;
+  --col-width: 20%; /* 5 reels */
+  background:
+    linear-gradient(
+      to right,
+      transparent calc(var(--glow-col) * var(--col-width)),
+      rgba(0,255,255,0.35) calc(var(--glow-col) * var(--col-width)),
+      rgba(0,255,255,0.35) calc((var(--glow-col) + 1) * var(--col-width)),
+      transparent calc((var(--glow-col) + 1) * var(--col-width))
+    );
+  transition: background 0.05s linear;
+}
+
+/* Reel glow container */
+.reel {
+  position: relative;
+  overflow: hidden;
+  height: 260px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(8,8,24,1), rgba(0,0,0,1));
+  border: 2px solid rgba(0,255,255,.35);
+  z-index: 10; /* Ensure reels are above all background stars */
+}
+
+.reel * {
+  border: none;
+  outline: none;
+}
+
+/* START glow: subtle brightening during acceleration */
+.reel.glow-start {
+  filter: drop-shadow(0 0 8px rgba(0,255,255,0.4));
+  transition: filter 140ms ease-out;
+}
+
+/* STOP glow: warm thud when landing */
+.reel.glow-stop {
+  filter: drop-shadow(0 0 12px rgba(255,255,0,0.55));
+  transition: filter 160ms ease-in;
+}
+
+/* Fade back to normal */
+.reel.glow-clear {
+  filter: none !important;
+  transition: filter 200ms ease;
+}
+
+.strip{
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  will-change: transform;
+  transition: transform 1s cubic-bezier(.2,.7,.2,1.0);
+}
+.reel .strip.bounce {
+  transition: transform 120ms cubic-bezier(.3,1.5,.4,1);
+}
+.strip.kick {
+  transition: transform 80ms cubic-bezier(.4,0,.3,1.2);
+}
+.cell{
+  height: var(--cell-h, 100px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 52px;
+  text-shadow: 0 0 6px rgba(255,255,255,.25);
+  overflow: hidden;
+  background: #000000; /* Fully opaque black to block all stars */
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+/* Ensure symbol <img> tags fill the cell and keep aspect ratio */
+.reel .cell img {
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+}
+
+/* SCATTER (triggers free spins) and JACK (jackpot symbol) — the two
+   feature-trigger symbols — get a glowing outline so they visually pop
+   and read as special compared to every other symbol. */
+.reel .cell img[src*="scatter"],
+.reel .cell img[src*="jackpotPlanet"] {
+  width: 88%;
+  height: 88%;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.95))
+          drop-shadow(0 0 12px rgba(255, 215, 0, 0.75));
+}
+
+/* Removed duplicate .reel .cell rule - properties merged into main .cell rule above */
+
+.controls{
+  display:flex;align-items:center;gap:12px;margin-top:14px
+}
+#spin{
+  background:linear-gradient(180deg, var(--green), #0bd);
+  color:#012; font-weight:800; letter-spacing:.5px;
+  border:none; padding:12px 24px; border-radius:14px; cursor:pointer;
+  box-shadow:0 8px 20px rgba(0,255,200,.25);
+}
+#spin:disabled{opacity:.5; cursor:not-allowed}
+#lastWin{min-width:110px; text-align:center}
+
+.win-flash{
+  animation: flash .8s ease-out;
+}
+@keyframes flash{
+  0%{box-shadow:0 0 0 rgba(255,255,255,0)}
+  50%{box-shadow:0 0 28px rgba(255,255,255,.45)}
+  100%{box-shadow:0 0 0 rgba(255,255,255,0)}
+}
+
+/* TOP BAR: title in top-right of screen */
+.top-bar {
+  display: flex;
+  justify-content: center;  /* center the title */
+  padding: 10px 0 0;
+}
+
+.game-title {
+  margin: 0;
+  font-size: 3.5rem;        /* adjust if you want bigger/smaller */
+  text-align: center;
+  background: linear-gradient(90deg, #ffffff 0%, #26ff94 45%, #2bbcff 70%, #ffffff 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 6px rgba(38, 255, 148, 0.35);
+  animation: titleShimmer 3.5s linear infinite, titleGlowPulse 2.6s ease-in-out infinite;
+  white-space: nowrap;
+}
+
+@keyframes titleShimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+@keyframes titleGlowPulse {
+  0%, 100% { text-shadow: 0 0 6px rgba(38, 255, 148, 0.25); }
+  50% { text-shadow: 0 0 12px rgba(43, 188, 255, 0.45); }
+}
+/* ZYLO STAGE: Zylo floats between title and reels */
+.zylo-stage {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 32px 0 25px;      /* keep distance to reels while moving down */
+  min-height: 120px;        /* vertical space so he can move later */
+  position: relative;
+  gap: 20px;
+}
+
+.jackpot-planet-wrap,
+.freespins-planet-wrap {
+  width: 320px;
+  height: 320px;
+  position: absolute;
+  left: calc(
+    50% + (min(1100px, 100%) / 2)
+    - 12px
+    - ((min(1100px, 100%) - 24px - 40px) / 5)
+    - 5px
+  );
+  top: 50%;
+  transform: translate(-50%, -50%);
+  image-rendering: auto;
+  pointer-events: none;
+  z-index: 6;
+  will-change: transform;
+  animation: jackpotFloat 7s ease-in-out infinite;
+}
+
+.freespins-planet-wrap {
+  left: calc(
+    50% - (min(1100px, 100%) / 2)
+    + 12px
+    + ((min(1100px, 100%) - 24px - 40px) / 5)
+    + 5px
+  );
+}
+
+.jackpot-arc {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  width: 340px;
+  height: 120px;
+  transform: translateX(-50%);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.jackpot-arc-text {
+  font-family: "Orbitron", sans-serif;
+  font-size: 28px;
+  letter-spacing: 6px;
+  fill: url(#jackpotArcGradient);
+  stroke: rgba(255, 90, 90, 0.85);
+  stroke-width: 1.2px;
+  paint-order: stroke fill;
+  filter: drop-shadow(0 0 6px rgba(255, 120, 120, 0.7)) drop-shadow(0 0 16px rgba(255, 70, 70, 0.5));
+}
+
+.jackpot-planet {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  filter: drop-shadow(0 0 18px rgba(255, 150, 95, 0.7)) drop-shadow(0 0 34px rgba(255, 110, 70, 0.48)) drop-shadow(0 0 50px rgba(255, 90, 50, 0.28)) brightness(1.12) saturate(1.18);
+  will-change: transform, filter;
+}
+
+.freespins-planet {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  filter: drop-shadow(0 0 11px rgba(60, 255, 180, 0.35)) drop-shadow(0 0 22px rgba(25, 215, 255, 0.2)) drop-shadow(0 0 32px rgba(60, 255, 160, 0.12)) brightness(1.03) saturate(1.06);
+  will-change: transform, filter;
+}
+
+.jackpot-planet-wrap.phase-1 .jackpot-planet {
+  animation: jackpotGlowLow 6s ease-in-out infinite;
+}
+
+.jackpot-planet-wrap.phase-2 .jackpot-planet {
+  animation: jackpotGlowHot 2.4s ease-in-out infinite;
+}
+
+.jackpot-planet-wrap.phase-3 .jackpot-planet {
+  animation: none;
+}
+
+.freespins-planet-wrap.phase-1 .freespins-planet {
+  animation: freespunGlowLow 6s ease-in-out infinite;
+}
+
+.freespins-planet-wrap.phase-2 .freespins-planet {
+  animation: freespunGlowHot 2.4s ease-in-out infinite;
+}
+
+.freespins-planet-wrap.phase-3 .freespins-planet {
+  animation: none;
+}
+
+.jackpot-planet-wrap.phase-2,
+.freespins-planet-wrap.phase-2 {
+  animation: jackpotFloat 7s ease-in-out infinite, jackpotShake 0.6s ease-in-out infinite;
+}
+
+.jackpot-planet-wrap.exploding .jackpot-planet,
+.freespins-planet-wrap.exploding .freespins-planet {
+  animation: jackpotFlash 0.35s ease-out;
+}
+
+.jackpot-lava,
+.freespins-lava {
+  position: absolute;
+  inset: 10%;
+  border-radius: 50%;
+  z-index: 1;
+  opacity: 0.12;
+  background:
+    radial-gradient(circle at 30% 40%, rgba(255, 80, 60, 0.55), transparent 55%),
+    radial-gradient(circle at 70% 60%, rgba(255, 140, 90, 0.35), transparent 60%),
+    radial-gradient(circle at 50% 50%, rgba(255, 40, 40, 0.35), transparent 65%);
+  mix-blend-mode: screen;
+  filter: blur(2px);
+  animation: lavaShimmer 14s linear infinite;
+  pointer-events: none;
+}
+
+.freespins-lava {
+  background:
+    radial-gradient(circle at 30% 40%, rgba(80, 255, 200, 0.55), transparent 55%),
+    radial-gradient(circle at 70% 60%, rgba(60, 200, 255, 0.35), transparent 60%),
+    radial-gradient(circle at 50% 50%, rgba(40, 255, 180, 0.35), transparent 65%);
+}
+
+.jackpot-planet-wrap.phase-2 .jackpot-lava,
+.freespins-planet-wrap.phase-2 .freespins-lava {
+  opacity: 0.18;
+}
+
+.jackpot-cracks {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  opacity: 0;
+  background-image: url("img/overlays/jackpot-cracks.png");
+  /* TODO: add cracks PNG at img/overlays/jackpot-cracks.png */
+  background-size: cover;
+  background-position: center;
+  mix-blend-mode: screen;
+  filter: brightness(1.1) drop-shadow(0 0 8px rgba(255, 120, 80, 0.35));
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.freespins-cracks {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  opacity: 0;
+  background-image: url("img/overlays/freespins-cracks.png");
+  /* TODO: add cracks PNG at img/overlays/freespins-cracks.png */
+  background-size: cover;
+  background-position: center;
+  mix-blend-mode: screen;
+  filter: brightness(1.1) drop-shadow(0 0 8px rgba(60, 255, 180, 0.35));
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.jackpot-planet-wrap.phase-2 .jackpot-cracks,
+.freespins-planet-wrap.phase-2 .freespins-cracks {
+  opacity: 0.6;
+}
+
+.jackpot-planet-wrap.phase-3 .jackpot-cracks,
+.freespins-planet-wrap.phase-3 .freespins-cracks {
+  opacity: 0.85;
+}
+
+.jackpot-planet-wrap.exploding .jackpot-cracks,
+.freespins-planet-wrap.exploding .freespins-cracks {
+  animation: cracksFlare 0.6s ease-out;
+}
+
+.jackpot-orbit-particles,
+.freespins-orbit-particles {
+  position: absolute;
+  inset: -14%;
+  z-index: 4;
+  pointer-events: none;
+  transform-style: preserve-3d;
+  transform: rotateX(60deg);
+}
+
+.jackpot-orbit-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255, 120, 120, 0.65);
+  box-shadow: 0 0 6px rgba(255, 120, 120, 0.55);
+  transform: rotate(var(--start)) translateX(var(--radius));
+  animation: orbitSpin var(--duration) linear infinite;
+  animation-delay: var(--delay);
+  opacity: 0.5;
+}
+
+.freespins-orbit-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(60, 255, 180, 0.7);
+  box-shadow: 0 0 6px rgba(60, 255, 200, 0.6);
+  transform: rotate(var(--start)) translateX(var(--radius));
+  animation: orbitSpin var(--duration) linear infinite;
+  animation-delay: var(--delay);
+  opacity: 0.5;
+}
+
+.jackpot-planet-wrap.phase-2 .jackpot-orbit-dot,
+.freespins-planet-wrap.phase-2 .freespins-orbit-dot {
+  opacity: 0.8;
+}
+
+.jackpot-beam {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 0;
+  opacity: 0;
+  border-radius: 999px;
+  background: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.75) 0%, rgba(255, 80, 80, 0.6) 35%, rgba(0, 0, 0, 0) 95%);
+  box-shadow: 0 0 30px rgba(255, 120, 120, 0.45), 0 0 70px rgba(255, 80, 80, 0.25);
+  transition: height 0.25s ease-out, opacity 0.18s ease-out;
+  pointer-events: none;
+}
+
+.freespins-beam {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 0;
+  opacity: 0;
+  border-radius: 999px;
+  background: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.75) 0%, rgba(60, 255, 180, 0.6) 35%, rgba(0, 0, 0, 0) 95%);
+  box-shadow: 0 0 30px rgba(60, 255, 200, 0.45), 0 0 70px rgba(25, 215, 255, 0.25);
+  transition: height 0.25s ease-out, opacity 0.18s ease-out;
+  pointer-events: none;
+}
+
+.jackpot-beam.active,
+.freespins-beam.active {
+  opacity: 1;
+}
+
+.jackpot-arc,
+.freespins-arc {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  width: 340px;
+  height: 120px;
+  transform: translateX(-50%);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.jackpot-arc-text,
+.freespins-arc-text {
+  font-family: "Orbitron", sans-serif;
+  font-size: 28px;
+  letter-spacing: 6px;
+  fill: url(#jackpotArcGradient);
+  stroke: rgba(255, 90, 90, 0.85);
+  stroke-width: 1.2px;
+  paint-order: stroke fill;
+  filter: drop-shadow(0 0 6px rgba(255, 120, 120, 0.7)) drop-shadow(0 0 16px rgba(255, 70, 70, 0.5));
+}
+
+.freespins-arc-text {
+  fill: url(#freespinsArcGradient);
+  stroke: rgba(60, 255, 160, 0.85);
+  filter: drop-shadow(0 0 6px rgba(60, 255, 180, 0.7)) drop-shadow(0 0 16px rgba(25, 215, 255, 0.45));
+}
+
+.jackpot-dim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+  z-index: 20;
+}
+
+.jackpot-dim.active {
+  opacity: 1;
+}
+
+.jackpot-screen-flash {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.9);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 35;
+}
+
+.jackpot-screen-flash.active {
+  animation: jackpotScreenFlash 0.55s ease-out;
+}
+
+.jackpot-banner {
+  position: fixed;
+  top: 18%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.85);
+  opacity: 0;
+  z-index: 30;
+  text-align: center;
+  font-family: "Orbitron", sans-serif;
+  letter-spacing: 2px;
+  color: #fff;
+  text-shadow: 0 0 14px rgba(255, 120, 120, 0.6), 0 0 26px rgba(255, 80, 120, 0.35);
+  pointer-events: none;
+}
+
+.jackpot-banner.show {
+  animation: jackpotBannerSlam 1.2s ease-out forwards;
+}
+
+.jackpot-title {
+  font-size: clamp(1.8rem, 4vw, 3.2rem);
+  font-weight: 700;
+}
+
+.jackpot-amount {
+  margin-top: 6px;
+  font-size: clamp(1rem, 2.6vw, 1.8rem);
+  color: #ffd2d2;
+}
+
+.jackpot-coin-burst {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 25;
+}
+
+.jackpot-coin {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #fff4c2 0%, #ffb347 35%, #ff7a3d 70%, rgba(255, 122, 61, 0.1) 100%);
+  box-shadow: 0 0 10px rgba(255, 160, 90, 0.65);
+  opacity: 0.9;
+  animation: coinBurst 0.9s ease-out forwards;
+  pointer-events: none;
+}
+
+.zylo-header-image.look-jackpot {
+  transform: rotate(-8deg) translateX(-2px);
+  filter: drop-shadow(0 0 10px rgba(255, 120, 120, 0.5));
+}
+
+.zylo-header-image.celebrate {
+  animation: zyloCelebrate 0.7s ease-in-out infinite;
+}
+
+@keyframes jackpotFloat {
+  0%, 100% { transform: translate(-50%, -50%) translateY(0px) scale(1); }
+  50% { transform: translate(-50%, -50%) translateY(-8px) scale(1.02); }
+}
+
+@keyframes jackpotRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes jackpotGlowLow {
+  0%, 100% { filter: drop-shadow(0 0 14px rgba(255, 135, 100, 0.55)) drop-shadow(0 0 28px rgba(255, 95, 70, 0.38)) brightness(1.08) saturate(1.15); }
+  50% { filter: drop-shadow(0 0 20px rgba(255, 150, 115, 0.7)) drop-shadow(0 0 38px rgba(255, 110, 80, 0.5)) brightness(1.14) saturate(1.2); }
+}
+
+@keyframes jackpotGlowHot {
+  0%, 100% { filter: drop-shadow(0 0 20px rgba(255, 155, 115, 0.75)) drop-shadow(0 0 40px rgba(255, 110, 85, 0.5)) brightness(1.16) saturate(1.2); }
+  50% { filter: drop-shadow(0 0 32px rgba(255, 185, 135, 0.95)) drop-shadow(0 0 60px rgba(255, 130, 100, 0.7)) brightness(1.25) saturate(1.28); }
+}
+
+@keyframes freespunGlowLow {
+  0%, 100% { filter: drop-shadow(0 0 10px rgba(60, 255, 180, 0.3)) drop-shadow(0 0 20px rgba(25, 215, 255, 0.18)) brightness(1.02) saturate(1.05); }
+  50% { filter: drop-shadow(0 0 14px rgba(60, 255, 200, 0.4)) drop-shadow(0 0 24px rgba(25, 215, 255, 0.25)) brightness(1.06) saturate(1.1); }
+}
+
+@keyframes freespunGlowHot {
+  0%, 100% { filter: drop-shadow(0 0 14px rgba(60, 255, 200, 0.45)) drop-shadow(0 0 28px rgba(25, 215, 255, 0.3)) brightness(1.08) saturate(1.12); }
+  50% { filter: drop-shadow(0 0 22px rgba(60, 255, 220, 0.7)) drop-shadow(0 0 45px rgba(25, 215, 255, 0.45)) brightness(1.15) saturate(1.2); }
+}
+
+@keyframes jackpotShake {
+  0% { transform: translate(-50%, -50%) translateX(0); }
+  20% { transform: translate(-50%, -50%) translateX(-1px); }
+  40% { transform: translate(-50%, -50%) translateX(1px); }
+  60% { transform: translate(-50%, -50%) translateX(-1px); }
+  80% { transform: translate(-50%, -50%) translateX(1px); }
+  100% { transform: translate(-50%, -50%) translateX(0); }
+}
+
+@keyframes lavaShimmer {
+  0% { transform: translateY(0) scale(1); opacity: 0.12; }
+  50% { transform: translateY(-3px) scale(1.02); opacity: 0.18; }
+  100% { transform: translateY(0) scale(1); opacity: 0.12; }
+}
+
+@keyframes orbitSpin {
+  from { transform: rotate(var(--start)) translateX(var(--radius)); }
+  to { transform: rotate(calc(var(--start) + 360deg)) translateX(var(--radius)); }
+}
+
+@keyframes cracksFlare {
+  0% { transform: scale(1); filter: brightness(1.1); opacity: 0.8; }
+  60% { transform: scale(1.08); filter: brightness(1.5); opacity: 1; }
+  100% { transform: scale(1.02); filter: brightness(1.2); opacity: 0.9; }
+}
+
+@keyframes jackpotFlash {
+  0% { filter: brightness(1.3) saturate(1.2); }
+  100% { filter: brightness(1.05) saturate(1.05); }
+}
+
+@keyframes jackpotScreenFlash {
+  0% { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+
+@keyframes jackpotBannerSlam {
+  0% { opacity: 0; transform: translate(-50%, -120%) scale(0.7); }
+  60% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes coinBurst {
+  0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) scale(0.6); opacity: 0; }
+}
+
+@keyframes zyloCelebrate {
+  0% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-6px) rotate(-6deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+
+
+/* ZYLO ORBIT: wrapper used in the header containing Zylo + zap beam */
+.zylo-orbit {
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 10;
+  transition: left 3.0s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.zylo-orbit.tilt-left {
+  transform: translateX(-50%) rotate(-8deg);
+}
+
+.zylo-orbit.tilt-right {
+  transform: translateX(-50%) rotate(8deg);
+}
+
+/* image-only hover/zap styles applied further down */
+
+/* Zap beam element that sits under Zylo and stretches downward */
+.zap-beam {
+  position: absolute;
+  top: 100%;              /* starts just under Zylo */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 110px;           /* <<< much wider = tractor beam */
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+  border-radius: 999px;
+  background: radial-gradient(
+      circle at 50% 0%,
+      rgba(255, 255, 255, 0.70) 0,
+      rgba(0, 255, 200, 0.85) 30%,
+      rgba(160, 120, 255, 0.55) 55%,
+      rgba(0, 0, 0, 0) 95%
+    );
+  box-shadow:
+    0 0 30px rgba(0, 255, 220, 0.75),
+    0 0 70px rgba(0, 255, 220, 0.35);
+  transition:
+    height 0.25s ease-out,   /* was 0.14s */
+    opacity 0.10s ease-out;  /* was 0.08s */
+  z-index: 6;
+}
+
+.zap-beam.active {
+  opacity: 1;
+}
+
+/* keep .beam fallback styling for legacy code that created a .beam element */
+.beam {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 0px;
+  background: linear-gradient(180deg, rgba(200,160,255,0.95), rgba(0,255,200,0.08));
+  border-radius: 6px;
+  box-shadow: 0 0 24px rgba(160,120,255,0.9), 0 0 60px rgba(0,255,200,0.08);
+  pointer-events: none;
+  transition: height 260ms ease, opacity 200ms ease;
+  opacity: 0;
+  z-index: 5;
+}
+
+.beam.show { opacity: 1; }
+
+/* gentle float; we can later add side-to-side motion */
+@keyframes zyloFloat {
+  0%   { transform: translateY(0); }
+  50%  { transform: translateY(-6px); }
+  100% { transform: translateY(0); }
+}
+
+/* Zylo base hover (if not already there) */
+.zylo-header-image {
+  display: block;
+  max-width: 220px;
+  height: auto;
+  image-rendering: auto;
+  will-change: transform, filter;
+  animation: zyloIdleHover 6s ease-in-out infinite;
+  transform-style: preserve-3d;
+  perspective: 800px;
+  transition: filter 0.3s ease;
+}
+
+@keyframes zyloIdleHover {
+  0% {
+    transform: translateY(0);
+    filter: drop-shadow(0 0 10px rgba(0, 255, 180, 0.45));
+  }
+  50% {
+    transform: translateY(-8px);
+    filter: drop-shadow(0 0 18px rgba(160, 100, 255, 0.8));
+  }
+  100% {
+    transform: translateY(0);
+    filter: drop-shadow(0 0 10px rgba(0, 255, 180, 0.45));
+  }
+}
+
+/* When it's a zap spin, Zylo looks "charged" while reels spin */
+.zylo-header-image.zap-armed {
+  animation: zyloZapArmed 1.2s ease-in-out infinite;
+}
+
+@keyframes zyloZapArmed {
+  0% {
+    transform: translateY(-4px) scale(1);
+    filter: drop-shadow(0 0 12px rgba(0, 255, 180, 0.7));
+  }
+  50% {
+    transform: translateY(-12px) scale(1.05);
+    filter: drop-shadow(0 0 26px rgba(180, 120, 255, 1));
+  }
+  100% {
+    transform: translateY(-4px) scale(1);
+    filter: drop-shadow(0 0 12px rgba(0, 255, 180, 0.7));
+  }
+}
+
+/* Simplified, less-violent firing burst for Zylo */
+.zylo-header-image.zap-firing {
+  animation: zyloZapFire 0.18s ease-out;
+}
+
+@keyframes zyloZapFire {
+  0% {
+    transform: translateY(-10px) scale(1.05);
+  }
+  100% {
+    transform: translateY(-8px) scale(1.02);
+  }
+}
+
+/* Brief firing animation when he actually zaps */
+/* single zyloZapFire keyframe defined above is used for firing */
+
+/* Generic symbol style (adapt to your actual class) */
+.symbol {
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+  will-change: transform, filter;
+}
+
+/* When a symbol is zapped into a wild */
+.symbol.zap-wild {
+  box-shadow: 0 0 18px rgba(0, 255, 200, 0.9);
+  filter: drop-shadow(0 0 12px rgba(160, 120, 255, 1));
+  transform: scale(1.08);
+}
+
+/* A very quick electric flash */
+.symbol.zap-wild-flash {
+  animation: symbolZapFlash 0.12s linear;
+}
+
+@keyframes symbolZapFlash {
+  0% {
+    filter: brightness(2.0);
+  }
+  100% {
+    filter: brightness(1.0);
+  }
+}
+
+/* container for reels */
+#reels-container {
+  margin: 0 auto;
+  margin-top: 50px;
+  max-width: 1100px;      /* or whatever fits your layout */
+  position: relative;
+  z-index: 10; /* Above shooting stars */
+  transform: scale(0.8);
+  transform-origin: center top;
+}
+
+/* Reel stacking: ensure reels sit above the star background */
+.reels {
+  position: relative;
+  z-index: 2;
+}
+
+/* Support class-based star background if used in HTML */
+.background-stars {
+  position: absolute;
+  inset: -80%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* BOTTOM CONTROLS: single row at the bottom */
+.bottom-controls {
+  margin: 15px auto 0;
+  max-width: 900px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 28px; /* add more space between Spin and side groups */
+}
+
+.center-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* reuse your existing .spin-button styles, just ensure width/height look good */
+.spin-button {
+  background: linear-gradient(180deg, var(--green), #0bd);
+  color: #012;
+  font-weight: 800;
+  letter-spacing: .5px;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 14px;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0,255,200,.25);
+}
+
+.spin-button:disabled { opacity: .5; cursor: not-allowed }
+
+/* Bottom info display */
+.bottom-info {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex: 1;
+  justify-content: flex-start;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.info-label {
+  font-size: 0.75rem;
+  color: rgba(0,255,255,0.6);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.info-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--neon);
+  text-shadow: 0 0 10px rgba(0,255,255,0.5);
+}
+
+/* Icon buttons */
+.icon-buttons {
+  display: flex;
+  gap: 8px;
+  justify-self: end; /* push icon group to the far right column edge */
+}
+
+.icon-btn {
+  background: rgba(0,255,255,0.15);
+  border: 1px solid rgba(0,255,255,0.4);
+  color: var(--neon);
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.3rem;
+  transition: all 0.2s ease;
+}
+
+.icon-btn:hover {
+  background: rgba(0,255,255,0.25);
+  box-shadow: 0 0 10px rgba(0,255,255,0.3);
+  transform: scale(1.05);
+}
+
+/* Modal styles */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(5px);
+}
+
+.modal.modal-open {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background: linear-gradient(180deg, rgba(8,8,24,0.95), rgba(0,0,0,0.95));
+  border: 2px solid rgba(0,255,255,0.4);
+  border-radius: 16px;
+  padding: 24px;
+  min-width: 300px;
+  max-width: 400px;
+  box-shadow: 0 0 30px rgba(0,255,255,0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0,255,255,0.2);
+}
+
+.modal-header h2 {
+  color: var(--neon);
+  font-size: 1.4rem;
+  margin: 0;
+  text-shadow: 0 0 10px rgba(0,255,255,0.5);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--neon);
+  font-size: 2rem;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  line-height: 1;
+  transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+  color: #fff;
+  transform: rotate(90deg);
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Bet selector in modal */
+.bet-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 20px 0;
+}
+
+.bet-arrow {
+  background: rgba(0,255,255,0.15);
+  border: 1px solid rgba(0,255,255,0.4);
+  color: var(--neon);
+  padding: 12px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.2s ease;
+}
+
+.bet-arrow:hover {
+  background: rgba(0,255,255,0.25);
+  box-shadow: 0 0 10px rgba(0,255,255,0.3);
+}
+
+.bet-arrow:active {
+  transform: scale(0.95);
+}
+
+.bet-display {
+  background: rgba(0,255,255,0.1);
+  border: 2px solid rgba(0,255,255,0.4);
+  border-radius: 12px;
+  padding: 16px 32px;
+  min-width: 120px;
+  text-align: center;
+}
+
+.bet-display span {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--neon);
+  text-shadow: 0 0 15px rgba(0,255,255,0.6);
+}
+
+.control-btn {
+  background: rgba(0,255,255,0.15);
+  border: 1px solid rgba(0,255,255,0.4);
+  color: var(--neon);
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.control-btn:hover {
+  background: rgba(0,255,255,0.25);
+  box-shadow: 0 0 10px rgba(0,255,255,0.3);
+}
+
+.control-btn.active {
+  background: var(--neon);
+  color: #000;
+  box-shadow: 0 0 15px var(--neon);
+}
+
+.control-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Zap button states */
+#zapToggle.zap-off {
+  background: rgba(100, 100, 100, 0.3);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+#zapToggle.zap-force {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 100, 0, 0.3));
+  color: #FFD700;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+  animation: zapPulse 1s ease-in-out infinite;
+}
+
+@keyframes zapPulse {
+  0%, 100% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.6); }
+  50% { box-shadow: 0 0 30px rgba(255, 215, 0, 1); }
+}
+
+/* Auto Play Modal */
+.auto-play-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.auto-play-option {
+  background: rgba(0,255,255,0.15);
+  border: 2px solid rgba(0,255,255,0.4);
+  color: var(--neon);
+  padding: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.auto-play-option:hover {
+  background: rgba(0,255,255,0.25);
+  box-shadow: 0 0 15px rgba(0,255,255,0.4);
+  transform: scale(1.05);
+}
+
+.auto-play-option:active {
+  transform: scale(0.98);
+}
+
+.auto-play-info {
+  color: rgba(255,255,255,0.6);
+  font-size: 0.85rem;
+  text-align: center;
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0,255,255,0.2);
+}
+
+/* Auto Play Stop Button */
+.auto-play-button {
+  background: linear-gradient(180deg, rgba(255,50,50,0.8), rgba(200,0,0,0.9));
+  border: 2px solid rgba(255,100,100,0.6);
+  color: #fff;
+  padding: 16px 32px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+  transition: all 0.2s ease;
+  animation: pulse-stop 1.5s ease-in-out infinite;
+}
+
+.auto-play-button:hover {
+  background: linear-gradient(180deg, rgba(255,80,80,1), rgba(220,20,20,1));
+  box-shadow: 0 0 20px rgba(255,50,50,0.6);
+  transform: scale(1.05);
+}
+
+@keyframes pulse-stop {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(255,50,50,0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255,50,50,0.8);
+  }
+}
+
+/* Paytable Modal */
+.paytable-modal {
+  max-width: 600px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.paytable-modal .modal-body {
+  gap: 20px;
+}
+
+.paytable-section {
+  margin-bottom: 20px;
+}
+
+.paytable-section h3 {
+  color: var(--neon);
+  font-size: 1.1rem;
+  margin: 0 0 12px 0;
+  text-align: center;
+  text-shadow: 0 0 10px rgba(0,255,255,0.5);
+  border-bottom: 1px solid rgba(0,255,255,0.3);
+  padding-bottom: 8px;
+}
+
+.paytable-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.paytable-item {
+  background: rgba(0,255,255,0.08);
+  border: 1px solid rgba(0,255,255,0.25);
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.paytable-item:hover {
+  background: rgba(0,255,255,0.15);
+  border-color: rgba(0,255,255,0.4);
+  transform: translateY(-2px);
+}
+
+.paytable-symbol {
+  margin-bottom: 8px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.paytable-symbol img {
+  max-width: 45px;
+  max-height: 45px;
+  filter: drop-shadow(0 0 3px rgba(0,255,255,0.3));
+}
+
+.paytable-pays {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.9);
+  line-height: 1.6;
+}
+
+.paytable-pays div {
+  color: rgba(255,255,255,0.8);
+}
+
+.paytable-special {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.paytable-special-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(0,255,255,0.08);
+  border: 1px solid rgba(0,255,255,0.25);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.paytable-special-item .paytable-symbol {
+  flex-shrink: 0;
+  width: 60px;
+  height: 60px;
+}
+
+.paytable-special-item .paytable-symbol img {
+  max-width: 55px;
+  max-height: 55px;
+}
+
+.paytable-desc {
+  flex: 1;
+  text-align: left;
+}
+
+.paytable-desc strong {
+  color: var(--neon);
+  font-size: 1rem;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.paytable-desc p {
+  color: rgba(255,255,255,0.7);
+  font-size: 0.85rem;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.paytable-info {
+  background: rgba(0,255,255,0.1);
+  border: 1px solid rgba(0,255,255,0.3);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 16px;
+}
+
+.paytable-info p {
+  color: rgba(255,255,255,0.8);
+  font-size: 0.85rem;
+  margin: 6px 0;
+  line-height: 1.5;
+}
+
+.paytable-info strong {
+  color: var(--neon);
+}
+
+/* Scrollbar styling for paytable */
+.paytable-modal::-webkit-scrollbar {
+  width: 8px;
+}
+  width: 4100%;
+  height: 4100%;
+  background: rgba(0,0,0,0.3);
+  border-radius: 4px;
+}
+
+.paytable-modal::-webkit-scrollbar-thumb {
+  background: rgba(0,255,255,0.3);
+  border-radius: 4px;
+}
+
+.paytable-modal::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,255,255,0.5);
+}
+
+/* Zap visual helpers (added for Zylo zap UX) */
+.zapped {
+  box-shadow: 0 0 12px 4px rgba(0,255,200,0.35);
+  transform: scale(1.04);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+.wild {
+  border: 2px solid gold;
+}
+.zap-focus {
+  filter: saturate(1.05) contrast(1.05);
+}
+
+/* Galaxy canvas sits behind UI but above very-base backgrounds */
+#galaxy {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: transparent;
+
+  /* REMOVE width & height */
+  width: auto;
+  height: auto;
+}
+
+/* ============================================================
+   NEBULA — a distant cosmic ribbon with visible structure
+   ------------------------------------------------------------
+   Reuses the three existing .nebula-layer divs. No HTML change.
+   Seven render layers total: 3 elements + ::before/::after on two of them.
+
+     .nebula-back            outer glow      broad, faint, softest stops
+     .nebula-mid             main cloud      defined cores + ring voids
+     .nebula-mid::before     streaks         thin rotated wisps
+     .nebula-mid::after      arcs            seam-free conic curves
+     .nebula-front           sharp wisps     thin, tight, brightest bands
+     .nebula-front::before   knots           small glowing nodes (only blur)
+     .nebula-front::after    highlights      tiny white sparks
+
+   SHARPNESS: there is no filter on the cloud layers. Definition comes from
+   the gradient stops. Outer glow fades out at 78%, the main cloud at ~60%,
+   the wisps at ~56%. Tighter stop = harder core = more visible structure.
+
+   RIBBON: every mask is a chain of overlapping ellipses stepping up and to
+   the right, so the union is a long winding band rather than a round blob.
+
+   VOIDS: several gradients are rings (transparent centre, colour at 40%,
+   transparent again). Because the layers use screen blending they can only
+   add light, so a "dark gap" is made by leaving a hole for the night sky.
+
+   EDGES: every mask blob reaches full transparency at least 4% of the box
+   inside the boundary, verified mechanically, so no element edge can ever
+   appear at any point in the drift. mask-repeat is explicitly no-repeat so
+   nothing tiles outside the box. No clip-path, no polygon, no rotation of
+   an un-masked rectangle.
+   ============================================================ */
+
+/* ---- TUNING DIALS: change these, not the geometry below ---- */
+:root {
+  --neb-blur: 5px;            /* knot glow softness  (2px sharp → 10px soft) */
+  --neb-glow: .54;            /* outer glow strength */
+  --neb-cloud: .74;           /* main cloud strength */
+  --neb-detail: .64;          /* wisps / knots / highlights strength */
+  --neb-speed-back: 152s;     /* drift periods (100s fast → 160s slow) */
+  --neb-speed-mid: 124s;
+  --neb-speed-front: 104s;
+}
+
+.nebula-layer {
+  position: fixed;
+  z-index: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+.nebula-layer::before,
+.nebula-layer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* ============ 1. OUTER GLOW — broad and faint ============ */
+.nebula-back {
+  left: -24vw;
+  top: -12vh;
+  width: 128vw;
+  height: 96vh;
+  opacity: var(--neb-glow);
+  background-image:
+    radial-gradient(ellipse 36.9% 42.6% at 30% 55%, rgba(150, 60, 225, .26) 0%, rgba(120, 45, 190, .11) 46%, transparent 78%),
+    radial-gradient(ellipse 34.1% 36.9% at 55% 42%, rgba(210, 60, 215, .22) 0%, rgba(170, 45, 180, .09) 48%, transparent 78%),
+    radial-gradient(ellipse 31.2% 31.2% at 76% 34%, rgba(40, 190, 220, .20) 0%, transparent 76%);
+  -webkit-mask-image:
+    radial-gradient(ellipse 24% 30% at 26% 60%, #000 0%, rgba(0,0,0,.8) 40%, transparent 80%),
+    radial-gradient(ellipse 25% 27% at 39% 52%, #000 0%, rgba(0,0,0,.8) 40%, transparent 80%),
+    radial-gradient(ellipse 25% 25% at 52% 44%, #000 0%, rgba(0,0,0,.78) 40%, transparent 80%),
+    radial-gradient(ellipse 23% 23% at 65% 38%, #000 0%, rgba(0,0,0,.76) 40%, transparent 80%),
+    radial-gradient(ellipse 20% 20% at 76% 33%, #000 0%, rgba(0,0,0,.72) 40%, transparent 80%);
+  mask-image:
+    radial-gradient(ellipse 24% 30% at 26% 60%, #000 0%, rgba(0,0,0,.8) 40%, transparent 80%),
+    radial-gradient(ellipse 25% 27% at 39% 52%, #000 0%, rgba(0,0,0,.8) 40%, transparent 80%),
+    radial-gradient(ellipse 25% 25% at 52% 44%, #000 0%, rgba(0,0,0,.78) 40%, transparent 80%),
+    radial-gradient(ellipse 23% 23% at 65% 38%, #000 0%, rgba(0,0,0,.76) 40%, transparent 80%),
+    radial-gradient(ellipse 20% 20% at 76% 33%, #000 0%, rgba(0,0,0,.72) 40%, transparent 80%);
+  animation:
+    nebDriftBack var(--neb-speed-back) ease-in-out infinite alternate,
+    nebPulseBack 21s ease-in-out infinite;
+}
+
+/* ============ 2. MAIN CLOUD — defined cores and ring voids ============ */
+.nebula-mid {
+  left: -14vw;
+  top: -5vh;
+  width: 104vw;
+  height: 76vh;
+  opacity: var(--neb-cloud);
+  background-image:
+    radial-gradient(ellipse 20.7% 26.2% at 30% 54%, rgba(190, 60, 245, .42) 0%, rgba(150, 45, 210, .18) 34%, transparent 62%),
+    radial-gradient(ellipse 19.3% 22.1% at 44% 47%, rgba(255, 55, 175, .40) 0%, rgba(215, 45, 150, .16) 32%, transparent 60%),
+    radial-gradient(ellipse 20.7% 20.7% at 58% 40%, rgba(60, 200, 255, .38) 0%, rgba(40, 160, 220, .15) 34%, transparent 62%),
+    radial-gradient(ellipse 16.6% 19.3% at 70% 35%, rgba(90, 110, 255, .34) 0%, transparent 58%),
+    radial-gradient(ellipse 15.2% 17.9% at 36% 58%, rgba(255, 140, 205, .26) 0%, transparent 56%),
+    radial-gradient(ellipse 17.9% 20.7% at 50% 44%, transparent 0%, transparent 26%, rgba(170, 70, 240, .30) 40%, transparent 68%),
+    radial-gradient(ellipse 15.2% 16.6% at 64% 37%, transparent 0%, transparent 30%, rgba(60, 210, 255, .26) 44%, transparent 70%);
+  -webkit-mask-image:
+    radial-gradient(ellipse 21% 26% at 28% 58%, #000 0%, rgba(0,0,0,.8) 40%, transparent 80%),
+    radial-gradient(ellipse 22% 24% at 40% 50%, #000 0%, rgba(0,0,0,.8) 40%, transparent 80%),
+    radial-gradient(ellipse 22% 23% at 52% 43%, #000 0%, rgba(0,0,0,.78) 40%, transparent 80%),
+    radial-gradient(ellipse 21% 21% at 64% 37%, #000 0%, rgba(0,0,0,.76) 40%, transparent 80%),
+    radial-gradient(ellipse 18% 19% at 75% 33%, #000 0%, rgba(0,0,0,.7) 40%, transparent 80%);
+  mask-image:
+    radial-gradient(ellipse 21% 26% at 28% 58%, #000 0%, rgba(0,0,0,.8) 40%, transparent 80%),
+    radial-gradient(ellipse 22% 24% at 40% 50%, #000 0%, rgba(0,0,0,.8) 40%, transparent 80%),
+    radial-gradient(ellipse 22% 23% at 52% 43%, #000 0%, rgba(0,0,0,.78) 40%, transparent 80%),
+    radial-gradient(ellipse 21% 21% at 64% 37%, #000 0%, rgba(0,0,0,.76) 40%, transparent 80%),
+    radial-gradient(ellipse 18% 19% at 75% 33%, #000 0%, rgba(0,0,0,.7) 40%, transparent 80%);
+  animation:
+    nebDriftMid var(--neb-speed-mid) ease-in-out infinite alternate,
+    nebPulseMid 17s ease-in-out infinite;
+}
+
+/* Thin rotated streaks running along the ribbon. */
+.nebula-mid::before {
+  transform: rotate(-14deg);
+  background-image:
+    radial-gradient(ellipse 26% 3% at 44% 48%, rgba(215, 120, 255, .26) 0%, transparent 62%),
+    radial-gradient(ellipse 20% 2.5% at 60% 41%, rgba(90, 225, 255, .22) 0%, transparent 64%),
+    radial-gradient(ellipse 16% 2% at 32% 56%, rgba(255, 120, 200, .20) 0%, transparent 62%);
+  -webkit-mask-image: radial-gradient(ellipse 34% 30% at 48% 48%, #000 0%, rgba(0,0,0,.8) 40%, transparent 78%);
+  mask-image: radial-gradient(ellipse 34% 30% at 48% 48%, #000 0%, rgba(0,0,0,.8) 40%, transparent 78%);
+  animation: nebDetailA 96s ease-in-out infinite alternate;
+}
+
+/* Curved arcs. The conic is seam-free: it is transparent at BOTH 0deg and
+   360deg, so there is no discontinuity ray like the earlier version had. */
+.nebula-mid::after {
+  background-image:
+    conic-gradient(from 150deg at 50% 46%,
+      transparent 0deg,
+      rgba(190, 70, 255, .20) 40deg,
+      transparent 96deg,
+      rgba(60, 205, 255, .17) 168deg,
+      transparent 226deg,
+      rgba(255, 70, 180, .16) 292deg,
+      transparent 360deg);
+  -webkit-mask-image: radial-gradient(ellipse 30% 26% at 50% 46%, #000 0%, rgba(0,0,0,.72) 38%, transparent 78%);
+  mask-image: radial-gradient(ellipse 30% 26% at 50% 46%, #000 0%, rgba(0,0,0,.72) 38%, transparent 78%);
+  animation: nebDetailB 138s ease-in-out infinite alternate;
+}
+
+/* ============ 3. SHARP WISPS — thin bright bands ============ */
+.nebula-front {
+  left: -8vw;
+  top: 0vh;
+  width: 78vw;
+  height: 56vh;
+  opacity: var(--neb-detail);
+  background-image:
+    radial-gradient(ellipse 23.4% 3.4% at 40% 50%, rgba(120, 235, 255, .42) 0%, transparent 58%),
+    radial-gradient(ellipse 19.5% 2.9% at 56% 43%, rgba(255, 110, 200, .38) 0%, transparent 58%),
+    radial-gradient(ellipse 15.6% 2.6% at 30% 57%, rgba(190, 110, 255, .34) 0%, transparent 58%),
+    radial-gradient(ellipse 13.0% 2.3% at 66% 38%, rgba(110, 140, 255, .30) 0%, transparent 58%);
+  -webkit-mask-image:
+    radial-gradient(ellipse 19% 23% at 30% 56%, #000 0%, rgba(0,0,0,.78) 40%, transparent 80%),
+    radial-gradient(ellipse 20% 22% at 44% 47%, #000 0%, rgba(0,0,0,.78) 40%, transparent 80%),
+    radial-gradient(ellipse 19% 20% at 58% 40%, #000 0%, rgba(0,0,0,.74) 40%, transparent 80%),
+    radial-gradient(ellipse 16% 17% at 70% 35%, #000 0%, rgba(0,0,0,.7) 40%, transparent 80%);
+  mask-image:
+    radial-gradient(ellipse 19% 23% at 30% 56%, #000 0%, rgba(0,0,0,.78) 40%, transparent 80%),
+    radial-gradient(ellipse 20% 22% at 44% 47%, #000 0%, rgba(0,0,0,.78) 40%, transparent 80%),
+    radial-gradient(ellipse 19% 20% at 58% 40%, #000 0%, rgba(0,0,0,.74) 40%, transparent 80%),
+    radial-gradient(ellipse 16% 17% at 70% 35%, #000 0%, rgba(0,0,0,.7) 40%, transparent 80%);
+  animation:
+    nebDriftFront var(--neb-speed-front) ease-in-out infinite alternate,
+    nebPulseFront 14s ease-in-out infinite;
+}
+
+/* ============ 4a. BRIGHT KNOTS — the only blurred layer ============ */
+.nebula-front::before {
+  filter: blur(var(--neb-blur));
+  background-image:
+    radial-gradient(ellipse 3.2% 4.2% at 38% 51%, rgba(150, 250, 255, .70) 0%, rgba(90, 210, 255, .22) 42%, transparent 74%),
+    radial-gradient(ellipse 2.8% 3.8% at 54% 44%, rgba(255, 150, 220, .62) 0%, rgba(230, 90, 180, .20) 44%, transparent 74%),
+    radial-gradient(ellipse 2.6% 3.4% at 46% 47%, rgba(210, 150, 255, .55) 0%, transparent 72%),
+    radial-gradient(ellipse 2.2% 3% at 64% 39%, rgba(140, 190, 255, .48) 0%, transparent 72%);
+  -webkit-mask-image: radial-gradient(ellipse 34% 30% at 50% 46%, #000 0%, rgba(0,0,0,.8) 42%, transparent 80%);
+  mask-image: radial-gradient(ellipse 34% 30% at 50% 46%, #000 0%, rgba(0,0,0,.8) 42%, transparent 80%);
+  animation: nebDetailA 88s ease-in-out infinite alternate;
+}
+
+/* ============ 4b. TINY WHITE HIGHLIGHTS ============ */
+.nebula-front::after {
+  background-image:
+    radial-gradient(ellipse 1.1% 1.5% at 43% 49%, rgba(255,255,255,.85) 0%, rgba(255,255,255,.22) 40%, transparent 72%),
+    radial-gradient(ellipse .9% 1.3% at 57% 42%, rgba(255,255,255,.75) 0%, rgba(255,255,255,.18) 42%, transparent 72%),
+    radial-gradient(ellipse .8% 1.1% at 34% 55%, rgba(235,250,255,.65) 0%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse 32% 28% at 48% 47%, #000 0%, rgba(0,0,0,.8) 42%, transparent 78%);
+  mask-image: radial-gradient(ellipse 32% 28% at 48% 47%, #000 0%, rgba(0,0,0,.8) 42%, transparent 78%);
+  animation: nebDetailB 116s ease-in-out infinite alternate;
+}
+
+/* ---------- Drift: horizontal, seamless, far slower than the stars.
+   Front travels furthest, back least, which reads as parallax. The two
+   detail animations add a small extra offset inside their parent so the
+   internal structure shifts against the cloud body over time. Periods
+   (152/124/104/96/138/88/116s) share no short common multiple. ---------- */
+@keyframes nebDriftBack {
+  from { transform: translate3d(-5vw, 0.8vh, 0) scale(1.02); }
+  to   { transform: translate3d(5vw, -0.8vh, 0) scale(1.05); }
+}
+@keyframes nebDriftMid {
+  from { transform: translate3d(-8vw, -1vh, 0) scale(1.01); }
+  to   { transform: translate3d(8vw, 1vh, 0) scale(1.04); }
+}
+@keyframes nebDriftFront {
+  from { transform: translate3d(-11vw, 1.2vh, 0) scale(1); }
+  to   { transform: translate3d(11vw, -1.2vh, 0) scale(1.03); }
+}
+@keyframes nebDetailA {
+  from { transform: translate3d(-1.6%, 0.6%, 0) rotate(-14deg); }
+  to   { transform: translate3d(1.6%, -0.6%, 0) rotate(-14deg); }
+}
+@keyframes nebDetailB {
+  from { transform: translate3d(1.2%, -0.5%, 0); }
+  to   { transform: translate3d(-1.2%, 0.5%, 0); }
+}
+
+/* Breathing. Deliberately shallow so it never pulses visibly. */
+@keyframes nebPulseBack  { 0%, 100% { opacity: calc(var(--neb-glow) * .90); }   50% { opacity: calc(var(--neb-glow) * 1.10); } }
+@keyframes nebPulseMid   { 0%, 100% { opacity: calc(var(--neb-cloud) * .90); }  50% { opacity: calc(var(--neb-cloud) * 1.08); } }
+@keyframes nebPulseFront { 0%, 100% { opacity: calc(var(--neb-detail) * .88); } 50% { opacity: calc(var(--neb-detail) * 1.09); } }
+
+/* Phones: pull the ribbon in and drop the finest detail. */
+@media (max-width: 480px) {
+  .nebula-back  { width: 104vw; height: 46vh; opacity: .38; }
+  .nebula-mid   { width: 88vw;  height: 38vh; opacity: .5; }
+  .nebula-front { width: 66vw;  height: 30vh; opacity: .45; }
+  .nebula-front::after { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nebula-layer,
+  .nebula-layer::before,
+  .nebula-layer::after { animation: none !important; }
+  .nebula-back  { opacity: var(--neb-glow); }
+  .nebula-mid   { opacity: var(--neb-cloud); }
+  .nebula-front { opacity: var(--neb-detail); }
+}
+
+/* Big Win Celebration Styles */
+@keyframes bigWinShake {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-8px, -4px) rotate(-1deg); }
+  20% { transform: translate(8px, 4px) rotate(1deg); }
+  30% { transform: translate(-6px, 6px) rotate(-0.5deg); }
+  40% { transform: translate(6px, -6px) rotate(0.5deg); }
+  50% { transform: translate(-4px, 4px) rotate(-0.3deg); }
+  60% { transform: translate(4px, -4px) rotate(0.3deg); }
+  70% { transform: translate(-2px, 2px) rotate(-0.1deg); }
+  80% { transform: translate(2px, -2px) rotate(0.1deg); }
+  90% { transform: translate(-1px, 1px); }
+}
+
+.big-win-shake {
+  animation: bigWinShake 0.6s ease-in-out;
+}
+
+/* Win Particles */
+.win-particle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: radial-gradient(circle, rgba(255, 215, 0, 1) 0%, rgba(255, 165, 0, 0.8) 50%, transparent 100%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  animation: particleBurst 1s ease-out forwards;
+}
+
+@keyframes particleBurst {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--tx), var(--ty)) scale(0);
+    opacity: 0;
+  }
+}
+
+/* Big Win Banner */
+.big-win-banner {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.5);
+  z-index: 10000;
+  text-align: center;
+  opacity: 0;
+  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
+
+.big-win-banner.show {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+}
+
+.big-win-text {
+  font-size: 4rem;
+  font-weight: 900;
+  color: #FFD700;
+  text-shadow: 
+    0 0 20px rgba(255, 215, 0, 0.8),
+    0 0 40px rgba(255, 215, 0, 0.6),
+    0 0 60px rgba(255, 165, 0, 0.4),
+    4px 4px 8px rgba(0, 0, 0, 0.8);
+  letter-spacing: 8px;
+  margin-bottom: 16px;
+  animation: bigWinPulse 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes bigWinPulse {
+  from {
+    text-shadow: 
+      0 0 20px rgba(255, 215, 0, 0.8),
+      0 0 40px rgba(255, 215, 0, 0.6),
+      0 0 60px rgba(255, 165, 0, 0.4),
+      4px 4px 8px rgba(0, 0, 0, 0.8);
+  }
+  to {
+    text-shadow: 
+      0 0 30px rgba(255, 215, 0, 1),
+      0 0 60px rgba(255, 215, 0, 0.8),
+      0 0 90px rgba(255, 165, 0, 0.6),
+      4px 4px 8px rgba(0, 0, 0, 0.8);
+  }
+}
+
+.big-win-amount {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--neon);
+  text-shadow: 
+    0 0 15px rgba(0, 255, 255, 0.8),
+    0 0 30px rgba(0, 255, 255, 0.6),
+    2px 2px 6px rgba(0, 0, 0, 0.8);
+}
+
+/* Winning Symbol Highlight */
+.cell.winning-symbol {
+  animation: winningPulse 0.6s ease-in-out infinite;
+  z-index: 10;
+}
+
+@keyframes winningPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.8)) brightness(1.2);
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 20px rgba(255, 215, 0, 1)) brightness(1.5);
+    transform: scale(1.1);
+  }
+}
+
+/* Win Line Animation */
+@keyframes winLinePulse {
+  0%, 100% {
+    opacity: 0.8;
+    stroke-width: 1;
+  }
+  50% {
+    opacity: 1;
+    stroke-width: 2;
+  }
+}
+
+/* ========================================
+   Mobile Portrait 9:16 Frame
+   Centers a fixed 9:16 game area with side letterboxing
+   and assigns proportions similar to popular mobile slots.
+   ======================================== */
+@media (max-width: 480px) and (orientation: portrait) {
+  /* 9:16 mobile game frame centered with side letterboxing */
+  #app {
+    height: 100dvh;
+    width: min(100dvw, calc(100dvh * 9 / 16));
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 0;
+  }
+
+  /* Safe-area padding for iOS bottom bar */
+  body { padding-bottom: env(safe-area-inset-bottom); }
+
+  /* Proportional sections inside the frame */
+  .top-bar { flex: 0 0 9%; padding: 6px 10px 0; }
+  .zylo-stage { flex: 0 0 18%; margin: 4px 0 6px; min-height: 0; }
+
+  #reels-container { flex: 1 1 56%; display: flex; }
+  #slot {
+    width: 100%;
+    height: 100%;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .reel { height: 100%; border-radius: 10px; }
+  /* Height is governed by --cell-h set from JS for perfect snapping */
+  .cell { font-size: clamp(1rem, 4.2vw, 1.35rem); }
+
+  .bottom-controls {
+    flex: 0 0 17%;
+    width: 100%;
+    padding: 6px 8px env(safe-area-inset-bottom);
+    margin: 6px 0 0;
+    gap: 10px;
+  }
+  .spin-button { font-size: 1.15rem; padding: 12px 18px; }
+  .bottom-info { gap: 12px; }
+  .info-label { font-size: 0.7rem; }
+  .info-value { font-size: 1rem; }
+  .icon-btn { font-size: 1.2rem; padding: 8px 12px; }
+}
+
+/* ========================================
+   MOBILE RESPONSIVENESS
+   ======================================== */
+
+/* Base fluid sizing for all screens */
+body {
+  font-size: clamp(12px, 1.5vw, 16px);
+}
+
+.game-title {
+  font-size: clamp(1.2rem, 4vw, 2.5rem);
+}
+
+/* Large Tablets and Small Laptops - 1024px and below */
+@media (max-width: 1024px) {
+  .zylo-stage {
+    height: clamp(250px, 30vh, 350px);
+  }
+
+  .zylo-orbit {
+    width: clamp(200px, 25vh, 280px);
+    height: clamp(200px, 25vh, 280px);
+  }
+
+  .zylo-header-image {
+    width: clamp(150px, 18vh, 200px);
+    height: clamp(150px, 18vh, 200px);
+  }
+
+  #slot {
+    max-width: 95%;
+    padding: clamp(10px, 2vw, 20px);
+  }
+
+  .reel {
+    height: clamp(240px, 35vh, 350px);
+  }
+
+  .cell {
+    height: var(--cell-h, 100px);
+    font-size: clamp(1.5rem, 3vw, 2.5rem);
+  }
+}
+
+/* Tablet (Portrait) - 768px and below */
+@media (min-width: 481px) and (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+
+  #app {
+    padding: 10px;
+    max-width: 100%;
+  }
+
+  /* Zylo Stage */
+  .zylo-stage {
+    height: clamp(200px, 25vh, 280px);
+  }
+
+  .zylo-orbit {
+    width: clamp(160px, 20vh, 240px);
+    height: clamp(160px, 20vh, 240px);
+  }
+
+  .zylo-header-image {
+    width: clamp(120px, 15vh, 180px);
+    height: clamp(120px, 15vh, 180px);
+  }
+
+  /* Reels */
+  #slot {
+    max-width: 500px;
+    padding: 10px;
+    gap: 6px;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .reel {
+    width: calc(20% - 5px);
+    height: clamp(200px, 30vh, 280px);
+    flex: 0 0 auto;
+    overflow: hidden !important;
+  }
+
+  .cell {
+    height: var(--cell-h, 100px);
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    border-radius: 6px;
+    box-sizing: border-box !important;
+    flex-shrink: 0 !important;
+  }
+
+  .cell img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+  }
+
+  /* Bottom Controls */
+  .bottom-controls {
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  /* Re-center icon buttons on stacked layout */
+  .icon-buttons { justify-self: center; }
+
+  .spin-button, .auto-play-button {
+    width: 100%;
+    padding: 14px 28px;
+    font-size: 1.1rem;
+  }
+
+  .bottom-info {
+    width: 100%;
+    justify-content: space-around;
+    gap: 8px;
+  }
+
+  .info-item {
+    flex: 1;
+    padding: 8px;
+  }
+
+  .info-label {
+    font-size: 0.75rem;
+  }
+
+  .info-value {
+    font-size: 0.9rem;
+  }
+
+  .icon-buttons {
+    width: 100%;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .icon-btn {
+    flex: 1;
+    padding: 12px;
+    font-size: 1.2rem;
+  }
+
+  /* Modals */
+  .modal-content {
+    max-width: 90%;
+    padding: 20px;
+  }
+
+  .modal-header h2 {
+    font-size: 1.2rem;
+  }
+
+  .paytable-modal {
+    max-width: 90%;
+    max-height: 80vh;
+  }
+
+  .paytable-grid {
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 10px;
+  }
+
+  .paytable-item {
+    padding: 10px;
+  }
+
+  .paytable-symbol {
+    height: 45px;
+  }
+
+  .paytable-symbol img {
+    max-width: 40px;
+    max-height: 40px;
+  }
+
+  /* Big Win Banner */
+  .big-win-banner {
+    width: 85%;
+    padding: 20px;
+  }
+
+  .big-win-text {
+    font-size: 2rem;
+  }
+
+  .big-win-amount {
+    font-size: 1.8rem;
+  }
+}
+
+/* Mobile (Phone) - 480px and below */
+@media (max-width: 480px) {
+  body {
+    font-size: 12px;
+    overflow: hidden;
+  }
+
+  #app {
+    padding: 3px;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .game-title {
+    font-size: 1.2rem;
+    margin: 3px 0;
+  }
+
+  .top-bar {
+    padding: 3px 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  /* Zylo Stage - Proportional but smaller */
+  .zylo-stage {
+    height: clamp(100px, 15dvh, 140px);
+    margin: clamp(5px, 1vh, 8px) auto;
+    width: 100%;
+  }
+
+  .zylo-orbit {
+    width: clamp(80px, 12vh, 110px);
+    height: clamp(80px, 12vh, 110px);
+  }
+
+  .zylo-header-image {
+    width: clamp(60px, 9vh, 85px);
+    height: clamp(60px, 9vh, 85px);
+  }
+
+  /* Reels - Bigger and properly proportioned */
+  #slot {
+    max-width: 100%;
+    width: 98%;
+    padding: clamp(8px, 2vh, 12px);
+    gap: clamp(4px, 1vw, 8px);
+    margin: clamp(5px, 1vh, 8px) auto;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: center !important;
+    align-items: stretch !important;
+  }
+
+  .reel {
+    width: 19.5% !important;
+    min-width: 62px !important;
+    max-width: 100px !important;
+    height: clamp(200px, 40dvh, 280px) !important;
+    border-radius: 8px;
+    flex: 0 0 auto !important;
+    display: block !important;
+    overflow: hidden !important;
+    position: relative !important;
+    border: 2px solid rgba(0, 255, 255, 0.3) !important;
+    background: linear-gradient(180deg, rgba(8,8,24,1), rgba(0,0,0,1)) !important;
+  }
+
+  .strip {
+    width: 100% !important;
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+  }
+
+  .cell {
+    height: calc(100% / 3) !important;
+    width: 100% !important;
+    font-size: clamp(1.2rem, 3vw, 1.6rem);
+    border-radius: 4px;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #000000 !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+    flex-shrink: 0 !important;
+  }
+
+  .reel .cell img {
+    max-width: 80% !important;
+    max-height: 80% !important;
+    width: auto !important;
+    height: auto !important;
+    display: block !important;
+    margin: auto !important;
+    object-fit: contain !important;
+  }
+
+  /* Bottom Controls - Compact */
+  .bottom-controls {
+    gap: clamp(6px, 2.5vw, 12px);
+    padding: clamp(3px, 1dvh, 6px);
+    width: 100%;
+    margin: 0 auto 0;
+    margin-top: auto; /* anchor controls at bottom */
+    padding-bottom: max(clamp(3px, 1dvh, 6px), env(safe-area-inset-bottom, 0px));
+  }
+
+  .spin-button, .auto-play-button {
+    padding: clamp(8px, 2vh, 12px) clamp(15px, 4vw, 20px);
+    font-size: clamp(0.8rem, 2vw, 1rem);
+    min-height: 44px;
+  }
+
+  .bottom-info {
+    flex-direction: row;
+    gap: clamp(2px, 0.5vw, 4px);
+    margin-bottom: clamp(3px, 1vh, 6px);
+  }
+
+  .info-item {
+    flex: 1;
+    padding: clamp(3px, 1vh, 6px) clamp(2px, 0.5vw, 4px);
+  }
+
+  .info-label {
+    font-size: clamp(0.6rem, 1.5vw, 0.75rem);
+  }
+
+  .info-value {
+    font-size: clamp(0.75rem, 2vw, 0.9rem);
+  }
+
+  .icon-buttons {
+    flex-wrap: wrap;
+    gap: clamp(3px, 1vw, 6px);
+    justify-content: center;
+  }
+
+  .icon-btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: clamp(6px, 1.5vh, 10px) clamp(8px, 2vw, 12px);
+    font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+    flex: 0 0 auto;
+  }
+
+  /* Modals - Full width on small screens */
+  .modal-content {
+    max-width: 95%;
+    padding: 16px;
+  }
+
+  .modal-header h2 {
+    font-size: 1.1rem;
+  }
+
+  .modal-close {
+    font-size: 1.5rem;
+    width: 28px;
+    height: 28px;
+  }
+
+  .paytable-modal {
+    max-width: 95%;
+    max-height: 75vh;
+  }
+
+  .paytable-section h3 {
+    font-size: 1rem;
+  }
+
+  .paytable-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .paytable-item {
+    padding: 8px;
+  }
+
+  .paytable-symbol {
+    height: 40px;
+  }
+
+  .paytable-symbol img {
+    max-width: 35px;
+    max-height: 35px;
+  }
+
+  .paytable-pays {
+    font-size: 0.75rem;
+  }
+
+  .paytable-special-item {
+    flex-direction: column;
+    text-align: center;
+    gap: 10px;
+  }
+
+  .paytable-special-item .paytable-symbol {
+    width: 50px;
+    height: 50px;
+  }
+
+  .paytable-desc {
+    text-align: center;
+  }
+
+  .paytable-info p {
+    font-size: 0.75rem;
+  }
+
+  /* Bet Modal */
+  .bet-selector {
+    gap: 12px;
+  }
+
+  .bet-arrow {
+    padding: 10px 12px;
+    font-size: 1rem;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .bet-display {
+    padding: 12px 20px;
+    min-width: 100px;
+  }
+
+  .bet-display span {
+    font-size: 1.4rem;
+  }
+
+  /* Auto-play options */
+  .auto-play-options {
+    gap: 10px;
+  }
+
+  .auto-play-option {
+    padding: 12px;
+    font-size: 0.9rem;
+    min-height: 48px;
+  }
+
+  /* Big Win Banner */
+  .big-win-banner {
+    width: 90%;
+    padding: 16px;
+  }
+
+  .big-win-text {
+    font-size: 1.5rem;
+  }
+
+  .big-win-amount {
+    font-size: 1.3rem;
+  }
+
+  /* Message/Say text */
+  .message {
+    font-size: 0.85rem;
+  }
+}
+
+/* Small Phones - 375px and below */
+@media (max-width: 375px) {
+  .zylo-stage {
+    height: clamp(90px, 14dvh, 120px);
+  }
+
+  .reel {
+    height: clamp(180px, 38dvh, 240px) !important;
+    min-width: 58px !important;
+    max-width: 88px !important;
+  }
+
+  .cell {
+    font-size: clamp(1rem, 2.5vw, 1.3rem);
+  }
+
+  .reel .cell img {
+    max-width: clamp(30px, 8vh, 45px) !important;
+    max-height: clamp(30px, 8vh, 45px) !important;
+  }
+}
+
+/* Landscape Mode Adjustments for Small Devices */
+@media (max-height: 600px) and (orientation: landscape) and (max-width: 900px) {
+  body {
+    overflow: hidden;
+  }
+
+  #app {
+    padding: clamp(2px, 0.5vh, 5px);
+    min-height: 100dvh;
+    max-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .top-bar {
+    padding: clamp(1px, 0.3vh, 3px) 0;
+  }
+
+  .game-title {
+    font-size: clamp(0.9rem, 3vh, 1.2rem);
+    margin: clamp(1px, 0.3vh, 3px) 0;
+  }
+
+  .zylo-stage {
+    height: clamp(80px, 16dvh, 110px);
+    margin-bottom: clamp(2px, 0.5vh, 5px);
+  }
+
+  .zylo-orbit {
+    width: clamp(60px, 12vh, 90px);
+    height: clamp(60px, 12vh, 90px);
+  }
+
+  .zylo-header-image {
+    width: clamp(45px, 9vh, 70px);
+    height: clamp(45px, 9vh, 70px);
+  }
+
+  #slot {
+    padding: clamp(3px, 0.8vh, 6px);
+    gap: clamp(2px, 0.4vw, 4px);
+    max-width: 85%;
+    margin: 0 auto clamp(2px, 0.5vh, 5px);
+  }
+
+  .reel {
+    height: clamp(100px, 35dvh, 150px) !important;
+  }
+
+  .cell {
+    height: calc(100% / 3) !important;
+    font-size: clamp(1rem, 2.5vh, 1.3rem);
+    box-sizing: border-box !important;
+    flex-shrink: 0 !important;
+  }
+
+  .reel .cell img {
+    max-width: 75% !important;
+    max-height: 75% !important;
+  }
+
+  .bottom-controls {
+    gap: clamp(2px, 0.5vh, 4px);
+    padding: clamp(2px, 0.5vh, 4px);
+    margin-bottom: clamp(2px, 0.5vh, 4px);
+  }
+
+  .spin-button, .auto-play-button {
+    padding: clamp(6px, 1.5vh, 10px) clamp(12px, 3vw, 18px);
+    font-size: clamp(0.75rem, 2vh, 0.95rem);
+    min-height: 44px;
+  }
+
+  .bottom-info {
+    margin-bottom: clamp(2px, 0.5vh, 4px);
+  }
+
+  .info-item {
+    padding: clamp(2px, 0.5vh, 4px) clamp(2px, 0.5vw, 4px);
+  }
+
+  .info-label {
+    font-size: clamp(0.55rem, 1.3vh, 0.7rem);
+  }
+
+  .info-value {
+    font-size: clamp(0.7rem, 1.8vh, 0.85rem);
+  }
+
+  .icon-btn {
+    padding: clamp(5px, 1.2vh, 8px) clamp(7px, 1.8vw, 10px);
+    font-size: clamp(0.85rem, 2.2vh, 1rem);
+  }
+}
+
+@keyframes zyloFlyInLeft {
+  0%   { transform: translateX(-600px) translateY(0px) scale(0.6); opacity: 0; }
+  60%  { transform: translateX(30px) translateY(-10px) scale(1.05); opacity: 1; }
+  100% { transform: translateX(0px) translateY(0px) scale(1); opacity: 1; }
+}
+
+@keyframes zyloFlyInRight {
+  0%   { transform: translateX(600px) translateY(0px) scale(0.6); opacity: 0; }
+  60%  { transform: translateX(-30px) translateY(-10px) scale(1.05); opacity: 1; }
+  100% { transform: translateX(0px) translateY(0px) scale(1); opacity: 1; }
+}
+
+@keyframes zyloFlyOutLeft {
+  0%   { transform: translateX(0px) scale(1); opacity: 1; }
+  100% { transform: translateX(-600px) scale(0.6); opacity: 0; }
+}
+
+@keyframes zyloFlyOutRight {
+  0%   { transform: translateX(0px) scale(1); opacity: 1; }
+  100% { transform: translateX(600px) scale(0.6); opacity: 0; }
+}
+
+@keyframes zyloFlyInTop {
+  0%   { transform: translateY(-400px) scale(0.6); opacity: 0; }
+  60%  { transform: translateY(20px) scale(1.05); opacity: 1; }
+  100% { transform: translateY(0px) scale(1); opacity: 1; }
+}
+
+@keyframes zyloFlyOutTop {
+  0%   { transform: translateY(0px) scale(1); opacity: 1; }
+  100% { transform: translateY(-400px) scale(0.6); opacity: 0; }
+}
+
+.zylo-fly-in-left  { animation: zyloFlyInLeft 0.7s cubic-bezier(.2,.8,.3,1) forwards; }
+.zylo-fly-in-right { animation: zyloFlyInRight 0.7s cubic-bezier(.2,.8,.3,1) forwards; }
+.zylo-fly-out-left { animation: zyloFlyOutLeft 0.5s cubic-bezier(.6,0,.8,.4) forwards; }
+.zylo-fly-out-right{ animation: zyloFlyOutRight 0.5s cubic-bezier(.6,0,.8,.4) forwards; }
+.zylo-fly-in-top   { animation: zyloFlyInTop 0.7s cubic-bezier(.2,.8,.3,1) forwards; }
+.zylo-fly-out-top  { animation: zyloFlyOutTop 0.5s cubic-bezier(.6,0,.8,.4) forwards; }
+
+/* ===== JACKPOT HOLD & WIN BOARD ===== */
+
+/* Hide the normal game UI during the jackpot round so the H&W board owns
+   the screen. The top-bar and zylo-stage are already hidden by earlier
+   body.jackpot-active rules; we add the reels and bottom controls here. */
+body.jackpot-active #reels-container,
+body.jackpot-active .bottom-controls {
+  display: none !important;
+}
+
+#holdWinBoard {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  pointer-events: none;
+}
+#holdWinBoard.show {
+  display: flex;
+  pointer-events: auto;
+}
+
+/* Header pill — one unified HUD instead of two separate boxes */
+#holdWinHeader {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  padding: 10px 26px;
+  background: linear-gradient(180deg, rgba(60, 15, 5, 0.9), rgba(25, 5, 5, 0.9));
+  border: 2px solid rgba(255, 180, 60, 0.75);
+  border-radius: 999px;
+  box-shadow: 0 0 30px rgba(255, 100, 20, 0.55), inset 0 0 12px rgba(0,0,0,0.5);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #ffe5a8;
+  text-shadow: 0 0 10px rgba(255, 180, 60, 0.7);
+}
+#holdWinStatus { font-size: 22px; }
+#holdWinStatus #holdWinSpinsLeft {
+  color: #fff;
+  font-size: 26px;
+  margin-right: 4px;
+  text-shadow: 0 0 12px #ffcc55, 0 0 20px #ff6a1a;
+}
+#holdWinTotal {
+  font-size: 18px;
+  padding-left: 20px;
+  border-left: 1px solid rgba(255, 180, 60, 0.4);
+}
+#holdWinTotal #holdWinTotalMult { color: #fff; }
+
+/* Grid — no boxy container, craters float on the lava */
+#holdWinGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 110px);
+  grid-template-rows: repeat(3, 110px);
+  gap: 14px;
+}
+
+/* Empty cell — a glowing crater / landing zone, not a UI block */
+.hw-cell {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 45%,
+      rgba(80, 20, 0, 0.55) 0%,
+      rgba(30, 5, 0, 0.75) 60%,
+      rgba(10, 0, 0, 0.85) 100%);
+  border: 2px solid rgba(255, 140, 40, 0.5);
+  box-shadow:
+    inset 0 0 25px rgba(0, 0, 0, 0.7),
+    0 0 14px rgba(255, 120, 30, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: hw-crater-pulse 2.2s ease-in-out infinite;
+}
+@keyframes hw-crater-pulse {
+  0%, 100% {
+    box-shadow: inset 0 0 25px rgba(0,0,0,0.7), 0 0 14px rgba(255, 120, 30, 0.35);
+    border-color: rgba(255, 140, 40, 0.5);
+  }
+  50% {
+    box-shadow: inset 0 0 25px rgba(0,0,0,0.7), 0 0 22px rgba(255, 170, 60, 0.65);
+    border-color: rgba(255, 180, 80, 0.85);
+  }
+}
+
+/* Filled cell — meteor sits in the crater, no pulse */
+.hw-cell.filled {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  animation: none;
+}
+
+.hw-meteor {
+  /* Slightly larger than the 110px crater. The PNG has huge transparent
+     margins around the actual rock (rock is ~40% of the image), so we
+     zoom in with background-size and re-center on the rock instead of
+     using contain, which would leave the rock small. */
+  width: 120px;
+  height: 120px;
+  background-image: url("JackpotPlanetMeteor.png");
+  background-size: 230%;
+  background-position: 46% 52%;
+  background-repeat: no-repeat;
+  /* Layered drop-shadows separate the meteor from the lava:
+     bright inner rim, warm mid glow, dark bottom shadow for contrast. */
+  filter:
+    drop-shadow(0 0 5px rgba(255, 230, 150, 0.95))
+    drop-shadow(0 0 16px rgba(255, 140, 40, 0.85))
+    drop-shadow(0 6px 10px rgba(0, 0, 0, 0.85));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 900;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 30px;
+  text-shadow: 0 0 10px #000, 0 2px 6px rgba(0,0,0,0.95), 0 0 4px #000;
+  letter-spacing: 1px;
+}
+.hw-cell.landing .hw-meteor {
+  animation: hw-land 0.6s cubic-bezier(0.3, 1.4, 0.4, 1) both;
+}
+@keyframes hw-land {
+  0%   { transform: translateY(-360px) scale(0.5); opacity: 0; }
+  60%  { transform: translateY(8px)    scale(1.1);  opacity: 1; }
+  100% { transform: translateY(0)      scale(1);    opacity: 1; }
+}
+
+/* Spin button */
+#holdWinSpinBtn {
+  padding: 16px 52px;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 4px;
+  color: #2a0a00;
+  border: 2px solid #ffd97a;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffe08a 0%, #ff9a1f 60%, #d95a00 100%);
+  box-shadow: 0 6px 0 #7a2a00, 0 0 26px rgba(255, 160, 40, 0.75);
+  cursor: pointer;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  transition: transform 0.08s ease, box-shadow 0.15s ease;
+}
+#holdWinSpinBtn:hover { transform: translateY(-1px); }
+#holdWinSpinBtn:active { transform: translateY(3px); box-shadow: 0 3px 0 #7a2a00; }
+#holdWinSpinBtn:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+  box-shadow: 0 3px 0 #7a2a00;
+}
+
+/* ===== Reel anticipation (outcome-aware near-win tease) =====
+   Applied by game.js only when the already-decided result genuinely
+   completes an event. Class is removed the moment the reel stops. */
+.reel.reel-anticipation {
+  animation:
+    reelAnticipationPulse 0.55s ease-in-out infinite alternate,
+    reelAnticipationShake 0.16s linear infinite;
+}
+
+@keyframes reelAnticipationPulse {
+  from { filter: drop-shadow(0 0 10px rgba(255, 210, 80, 0.55)); }
+  to   { filter: drop-shadow(0 0 22px rgba(255, 120, 220, 0.95)); }
+}
+
+@keyframes reelAnticipationShake {
+  0%   { transform: translateX(0); }
+  25%  { transform: translateX(-1px); }
+  75%  { transform: translateX(1px); }
+  100% { transform: translateX(0); }
+}
+
+
+/* ============================================================
+   ZYLO ANIMATION SYSTEM (Polish Pass — Operation 1)
+   Presentation only. Nothing here touches reels, payouts or CONFIG.
+
+   CONFLICT POLICY: every rule below animates the INDIVIDUAL transform
+   properties (translate / rotate / scale) instead of the `transform`
+   shorthand. The existing Zylo animations (zyloIdleHover, zap-armed,
+   zap-firing, celebrate, look-jackpot) all drive `transform`, and the
+   individual properties compose on top of it rather than replacing it.
+   That means the base idle hover keeps running underneath every state,
+   nothing fights for the same property, and removing a state class
+   returns cleanly to the default pose with no pop.
+   ============================================================ */
+
+/* Smooth return to neutral when a state class is removed. Added once by
+   the state machine at init so it never affects a Zylo-less page. */
+.zylo-header-image.zy-managed {
+  transition:
+    filter .3s ease,
+    translate .38s cubic-bezier(.22,.9,.32,1),
+    rotate   .38s cubic-bezier(.22,.9,.32,1),
+    scale    .38s cubic-bezier(.22,.9,.32,1);
+}
+
+/* ---------- IDLE BEATS (one-shot; all start and end at neutral) ---------- */
+.zylo-header-image.zy-beat-bob2:not(.zap-armed):not(.zap-firing):not(.celebrate)      { animation: zyBeatBob2 1900ms cubic-bezier(.37,0,.28,1); }
+.zylo-header-image.zy-beat-tilt-l:not(.zap-armed):not(.zap-firing):not(.celebrate)    { animation: zyBeatTiltL 1500ms cubic-bezier(.34,.02,.28,1); }
+.zylo-header-image.zy-beat-tilt-r:not(.zap-armed):not(.zap-firing):not(.celebrate)    { animation: zyBeatTiltR 1500ms cubic-bezier(.34,.02,.28,1); }
+.zylo-header-image.zy-beat-glance-l:not(.zap-armed):not(.zap-firing):not(.celebrate)  { animation: zyBeatGlanceL 1750ms cubic-bezier(.32,.06,.26,1); }
+.zylo-header-image.zy-beat-glance-r:not(.zap-armed):not(.zap-firing):not(.celebrate)  { animation: zyBeatGlanceR 1750ms cubic-bezier(.32,.06,.26,1); }
+.zylo-header-image.zy-beat-reels:not(.zap-armed):not(.zap-firing):not(.celebrate)     { animation: zyBeatGlanceReels 1650ms cubic-bezier(.32,.06,.26,1); }
+.zylo-header-image.zy-beat-player:not(.zap-armed):not(.zap-firing):not(.celebrate)    { animation: zyBeatLookPlayer 1600ms cubic-bezier(.3,.05,.3,1); }
+.zylo-header-image.zy-beat-thruster:not(.zap-armed):not(.zap-firing):not(.celebrate)  { animation: zyBeatThruster 1150ms cubic-bezier(.25,.1,.3,1); }
+.zylo-header-image.zy-beat-sway:not(.zap-armed):not(.zap-firing):not(.celebrate)      { animation: zyBeatSway 2600ms cubic-bezier(.4,0,.4,1); }
+.zylo-header-image.zy-beat-nod:not(.zap-armed):not(.zap-firing):not(.celebrate)       { animation: zyBeatNod 1300ms cubic-bezier(.34,.02,.28,1); }
+
+@keyframes zyBeatBob2 {
+  0%, 100% { translate: 0 0; }
+  30%      { translate: 0 -4px; }
+  62%      { translate: 0 1px; }
+}
+@keyframes zyBeatTiltL {
+  0%, 100% { rotate: 0deg;    translate: 0 0; }
+  40%      { rotate: -3.5deg; translate: -2px -1px; }
+  72%      { rotate: 0.8deg;  translate: 0 0; }
+}
+@keyframes zyBeatTiltR {
+  0%, 100% { rotate: 0deg;    translate: 0 0; }
+  40%      { rotate: 3.5deg;  translate: 2px -1px; }
+  72%      { rotate: -0.8deg; translate: 0 0; }
+}
+@keyframes zyBeatGlanceL {
+  0%, 100% { translate: 0 0;     rotate: 0deg; }
+  25%, 55% { translate: -7px 0;  rotate: -2.2deg; }
+}
+@keyframes zyBeatGlanceR {
+  0%, 100% { translate: 0 0;     rotate: 0deg; }
+  25%, 55% { translate: 7px 0;   rotate: 2.2deg; }
+}
+@keyframes zyBeatGlanceReels {
+  0%, 100% { translate: 0 0;    rotate: 0deg; scale: 1; }
+  30%, 62% { translate: 0 4px;  rotate: 0deg; scale: .995; }
+}
+@keyframes zyBeatLookPlayer {
+  0%, 100% { scale: 1;     translate: 0 0; }
+  35%, 62% { scale: 1.035; translate: 0 -1px; }
+}
+@keyframes zyBeatThruster {
+  0%, 100% { scale: 1 1;        translate: 0 0; }
+  20%      { scale: 1.02 .97;   translate: 0 2px; }
+  55%      { scale: .99 1.03;   translate: 0 -5px; }
+}
+@keyframes zyBeatSway {
+  0%, 100% { translate: 0 0;       rotate: 0deg; }
+  25%      { translate: -4px -2px; rotate: -1.4deg; }
+  75%      { translate: 4px -2px;  rotate: 1.4deg; }
+}
+@keyframes zyBeatNod {
+  0%, 100% { rotate: 0deg;  translate: 0 0; }
+  30%      { rotate: 2deg;  translate: 0 2px; }
+  58%      { rotate: -1deg; translate: 0 -1px; }
+}
+
+/* ---------- SPIN: focused forward lean, gaze follows the reels ---------- */
+.zylo-header-image.zy-spin:not(.zap-armed):not(.zap-firing):not(.celebrate) {
+  translate: var(--zy-gx, 0px) 2px;
+  rotate: var(--zy-gr, 0deg);
+  scale: 1.012;
+}
+
+/* ---------- ANTICIPATION: lean in harder, gaze locked on the reel ---------- */
+.zylo-header-image.zy-antic:not(.zap-armed):not(.zap-firing):not(.celebrate) {
+  translate: var(--zy-gx, 0px) 5px;
+  rotate: var(--zy-gr, 0deg);
+  scale: 1.05;
+}
+
+/* Ship vibration + zap recoil ride on the ORBIT wrapper, so they never
+   compete with the body language on the image. The orbit's own
+   `transform: translateX(-50%)` and its `left` transition (used by the
+   zap fly-over) are both untouched. */
+.zylo-orbit.zy-vibe   { animation: zyVibe 90ms linear infinite; }
+.zylo-orbit.zy-recoil { animation: zyRecoil 420ms cubic-bezier(.2,.85,.3,1); }
+
+@keyframes zyVibe {
+  0%, 100% { translate: 0 0; }
+  25%      { translate: .7px -.5px; }
+  50%      { translate: -.6px .4px; }
+  75%      { translate: .4px .6px; }
+}
+@keyframes zyRecoil {
+  0%   { translate: 0 0; }
+  12%  { translate: 0 -7px; }
+  45%  { translate: 0 3px; }
+  100% { translate: 0 0; }
+}
+
+/* ---------- BIG WIN celebrations (one picked at random) ---------- */
+.zylo-header-image.zy-win-pump:not(.zap-armed):not(.zap-firing):not(.celebrate)  { animation: zyWinPump 1500ms cubic-bezier(.3,.6,.3,1); }
+.zylo-header-image.zy-win-hover:not(.zap-armed):not(.zap-firing):not(.celebrate) { animation: zyWinHover 620ms cubic-bezier(.4,0,.4,1) 3; }
+.zylo-header-image.zy-win-dance:not(.zap-armed):not(.zap-firing):not(.celebrate) { animation: zyWinDance 900ms cubic-bezier(.4,0,.4,1) 2; }
+.zylo-header-image.zy-win-point:not(.zap-armed):not(.zap-firing):not(.celebrate) { animation: zyWinPoint 1700ms cubic-bezier(.28,.7,.3,1); }
+
+@keyframes zyWinPump {
+  0%, 100% { translate: 0 0;     rotate: 0deg;  scale: 1; }
+  15%      { translate: 0 -10px; rotate: -4deg; scale: 1.05; }
+  32%      { translate: 0 -2px;  rotate: 0deg;  scale: 1; }
+  50%      { translate: 0 -12px; rotate: 4deg;  scale: 1.06; }
+  70%      { translate: 0 -1px;  rotate: 0deg;  scale: 1; }
+  85%      { translate: 0 -5px;  rotate: 0deg;  scale: 1.02; }
+}
+@keyframes zyWinHover {
+  0%, 100% { translate: 0 0;    scale: 1; }
+  50%      { translate: 0 -9px; scale: 1.03; }
+}
+@keyframes zyWinDance {
+  0%, 100% { translate: 0 0;      rotate: 0deg; }
+  25%      { translate: -6px -3px; rotate: -5deg; }
+  75%      { translate: 6px -3px;  rotate: 5deg; }
+}
+@keyframes zyWinPoint {
+  0%, 100%  { translate: 0 0;      rotate: 0deg; scale: 1; }
+  20%       { translate: 0 -6px;   rotate: -3deg; scale: 1.04; }
+  40%, 72%  { translate: 0 6px;    rotate: 1.5deg; scale: 1.02; }
+  55%       { translate: 0 3px;    rotate: 1.5deg; scale: 1.02; }
+}
+
+/* Accessibility: hold the poses, drop the motion. */
+@media (prefers-reduced-motion: reduce) {
+  .zylo-header-image[class*="zy-"],
+  .zylo-orbit[class*="zy-"] { animation: none !important; }
+}
+
+
+/* ============================================================
+   ZYLO v2 LAYERED RIG  (assembly only, no animation)
+   ------------------------------------------------------------
+   The rig root carries .zylo-header-image, so all pre-existing Zylo CSS
+   (zyloIdleHover, zap-armed, zap-firing, celebrate, look-jackpot, the
+   fly-in/out set) and every game.js hook keep working unchanged, and now
+   drive the whole assembled character instead of one flat image.
+
+   REGISTRATION: the supplied parts are correctly isolated but each one is
+   drawn centred and scaled to fill its own 1536x1024 frame, so they are
+   not co-registered to a shared layout. Every layer therefore gets its own
+   scale and offset. object-fit: contain maps each frame into the identical
+   rig box, so relative alignment stays exact at every breakpoint.
+
+   ANCHORS: transform-origin per layer is the pivot that part will animate
+   around later (antenna base, arm shoulders, body base, thruster nozzle),
+   expressed in % so it survives scaling.
+
+   TUNING: only ever edit --zl-x / --zl-y / --zl-s. Nothing else needs to
+   move. Use zylo-rig-tuner.html to dial these in against the reference.
+   ============================================================ */
+
+.zylo-orbit .zylo-rig {
+  position: relative;
+  display: block;
+  width: 220px;
+  height: 220px;
+  max-width: 220px;
+}
+
+.zylo-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  /* transform + transform-origin are set by LayeredZylo.js */
+  will-change: transform;
+}
+
+/* ---- Layer order (paint order = DOM order) ----
+   1 ship  2 dashboard  3 body  4 arm-left  5 arm-right
+   6 eyes  7 mouth  8 antenna  9 cockpit  10 glow  11 flame */
+.zl-ship      { z-index: 1; }
+.zl-dashboard { z-index: 2; }
+.zl-body      { z-index: 3; }
+.zl-arm-left  { z-index: 4; }
+.zl-arm-right { z-index: 5; }
+.zl-eyes      { z-index: 6; }
+.zl-mouth     { z-index: 7; }
+.zl-antenna   { z-index: 8; }
+.zl-cockpit   { z-index: 9; }
+.zl-glow      { z-index: 10; }
+.zl-flame     { z-index: 11; }
+
+/* ---- Placement lives in LayeredZylo.js ----
+   Per-part offsets and scales are the constants at the top of that file.
+   Nothing here sets a transform on a layer, so there is exactly one
+   source of truth for where each part sits. ---- */
+
+/* ---- Responsive: mirrors the existing .zylo-header-image breakpoints
+        exactly, so Zylo's on-screen box is unchanged from before. ---- */
+@media (max-width: 1024px) {
+  .zylo-orbit .zylo-rig { width: clamp(150px, 18vh, 200px); height: clamp(150px, 18vh, 200px); }
+}
+@media (min-width: 481px) and (max-width: 768px) {
+  .zylo-orbit .zylo-rig { width: clamp(120px, 15vh, 180px); height: clamp(120px, 15vh, 180px); }
+}
+@media (max-width: 480px) {
+  .zylo-orbit .zylo-rig { width: clamp(60px, 9vh, 85px); height: clamp(60px, 9vh, 85px); }
+}
+@media (max-height: 600px) and (orientation: landscape) and (max-width: 900px) {
+  .zylo-orbit .zylo-rig { width: clamp(45px, 9vh, 70px); height: clamp(45px, 9vh, 70px); }
+}
+
+/* Debug isolation (LayeredZylo DEBUG_ISOLATE): kills every inherited
+   animation, transform and filter on the rig so a single layer can be
+   judged on its own. Inert unless the class is applied by the component. */
+.zylo-orbit .zylo-rig.zylo-debug {
+  animation: none !important;
+  transform: translateX(0) !important;
+  filter: none !important;
+}
+.zylo-orbit .zylo-rig.zylo-debug .zylo-layer {
+  animation: none !important;
+  filter: none !important;
+  clip-path: none !important;
+}

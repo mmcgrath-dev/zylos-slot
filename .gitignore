@@ -1,0 +1,12 @@
+# Installed dependencies
+node_modules/
+
+# Local backups
+Backups/
+
+# Operating system junk
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

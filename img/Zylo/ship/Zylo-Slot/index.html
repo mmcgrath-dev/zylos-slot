@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Zylo's Zap</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- TRUE BACKGROUND LAYERS (behind everything) -->
+  <canvas id="galaxy"></canvas>
+  <div class="space-bg"></div>
+  
+  <!-- ⭐ Nebula: three parallax layers, back to front -->
+  <div class="nebula-layer nebula-back"></div>
+  <div class="nebula-layer nebula-mid"></div>
+  <div class="nebula-layer nebula-front"></div>
+
+  <div class="shooting-star star1"></div>
+  <div class="shooting-star star2"></div>
+  <div class="shooting-star star3"></div>
+
+  <!-- MAIN APP -->
+  <div id="app">
+    <div class="top-bar">
+      <h1 class="game-title">Zylo's Zap</h1>
+      <div id="speech" class="zylo-speech"></div>
+    </div>
+
+    <div class="zylo-stage">
+      <div class="jackpot-planet-wrap phase-1" id="jackpotPlanet">
+        <svg class="jackpot-arc" viewBox="0 0 300 120" aria-hidden="true">
+          <defs>
+            <linearGradient id="jackpotArcGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#ffb3b3" />
+              <stop offset="45%" stop-color="#ff5a5a" />
+              <stop offset="100%" stop-color="#ff2f6f" />
+            </linearGradient>
+            <path id="jackpotArcPath" d="M 20 100 Q 150 0 280 100" />
+          </defs>
+          <text class="jackpot-arc-text">
+            <textPath href="#jackpotArcPath" startOffset="50%" text-anchor="middle">JACKPOT</textPath>
+          </text>
+        </svg>
+        <div class="jackpot-lava" aria-hidden="true"></div>
+        <img src="JackpotPlanet.png" alt="Jackpot meter planet" class="jackpot-planet" />
+        <div class="jackpot-cracks" aria-hidden="true"></div>
+        <div class="jackpot-orbit-particles" aria-hidden="true"></div>
+        <div class="jackpot-beam" aria-hidden="true"></div>
+      </div>
+      <div class="freespins-planet-wrap phase-1" id="freeSpinsPlanet">
+        <svg class="freespins-arc" viewBox="0 0 300 120" aria-hidden="true">
+          <defs>
+            <linearGradient id="freespinsArcGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#c8fff0" />
+              <stop offset="45%" stop-color="#3cff9d" />
+              <stop offset="100%" stop-color="#19d7ff" />
+            </linearGradient>
+            <path id="freespinsArcPath" d="M 20 100 Q 150 0 280 100" />
+          </defs>
+          <text class="freespins-arc-text">
+            <textPath href="#freespinsArcPath" startOffset="50%" text-anchor="middle">FREE SPINS</textPath>
+          </text>
+        </svg>
+        <div class="freespins-lava" aria-hidden="true"></div>
+        <img src="FreeSpinsPlanet.png" alt="Free spins planet" class="freespins-planet" />
+        <div class="freespins-cracks" aria-hidden="true"></div>
+        <div class="freespins-orbit-particles" aria-hidden="true"></div>
+        <div class="freespins-beam" aria-hidden="true"></div>
+      </div>
+      <div class="zylo-orbit">
+        <!-- ZYLO v2: LayeredZylo.js replaces #zyloMount with the assembled rig.
+             The rig root keeps class "zylo-header-image" so every existing
+             CSS animation and every game.js reference (zyloEl, zap-armed,
+             celebrate, look-jackpot, fly-out) still resolves and now moves
+             the whole character together. Layers are stacked in the approved
+             order; each is an independent element with its own anchor. -->
+        <div id="zyloMount"></div>
+        <div class="zap-beam"></div>
+      </div>
+    </div>
+
+    <div class="jackpot-dim" aria-hidden="true"></div>
+    <div class="jackpot-screen-flash" aria-hidden="true"></div>
+    <div class="jackpot-banner" aria-hidden="true">
+      <div class="jackpot-title">JACKPOT</div>
+      <div class="jackpot-amount"></div>
+    </div>
+    <div class="jackpot-coin-burst" aria-hidden="true"></div>
+
+    <div id="reels-container">
+      <div id="slot">
+        <div class="reel" data-reel="0"></div>
+        <div class="reel" data-reel="1"></div>
+        <div class="reel" data-reel="2"></div>
+        <div class="reel" data-reel="3"></div>
+        <div class="reel" data-reel="4"></div>
+      </div>
+    </div>
+
+    <div class="bottom-controls">
+      <div class="bottom-info">
+        <div class="info-item">
+          <span class="info-label">Balance:</span>
+          <span id="balance" class="info-value">$1000.00</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Bet:</span>
+          <span id="bet" class="info-value">$0.20</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Win:</span>
+          <span id="lastWin" class="info-value">$0.00</span>
+        </div>
+      </div>
+      
+      <div class="center-actions">
+        <button id="spin" class="spin-button">Spin</button>
+        <button id="autoPlayBtn" class="auto-play-button" style="display: none;">Stop Auto (0)</button>
+      </div>
+      
+      <div class="icon-buttons">
+        <button id="betBtn" class="icon-btn" title="Bet Amount">🎰</button>
+        <button id="autoBtn" class="icon-btn" title="Auto Play">🔄</button>
+        <button id="paytableBtn" class="icon-btn" title="Paytable">ℹ️</button>
+        <button id="settingsBtn" class="icon-btn" title="Settings">⚙️</button>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Settings</h2>
+          <button class="modal-close" data-modal="settingsModal">×</button>
+        </div>
+        <div class="modal-body">
+          <button id="turboMode" class="control-btn" title="Turbo Mode">⚡ TURBO</button>
+          <button id="soundToggle" class="control-btn" title="Sound On/Off">🔊</button>
+          <button id="zapToggle" class="control-btn" title="Zap Mode">⚡ ZAP: AUTO</button>
+          <button id="zapTriggerBtn" class="control-btn" title="Trigger Zap" style="display:none;">⚡ TRIGGER ZAP</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bet Modal -->
+    <div id="betModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Bet Amount</h2>
+          <button class="modal-close" data-modal="betModal">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="bet-selector">
+            <button id="betDown" class="bet-arrow">◀</button>
+            <div class="bet-display">
+              <span id="betAmount">$0.20</span>
+            </div>
+            <button id="betUp" class="bet-arrow">▶</button>
+          </div>
+          <button id="maxBet" class="control-btn" style="margin-top: 16px; width: 100%;">MAX BET</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Auto Play Modal -->
+    <div id="autoPlayModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Auto Play</h2>
+          <button class="modal-close" data-modal="autoPlayModal">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="auto-play-options">
+            <button class="auto-play-option" data-spins="10">10 Spins</button>
+            <button class="auto-play-option" data-spins="25">25 Spins</button>
+            <button class="auto-play-option" data-spins="50">50 Spins</button>
+            <button class="auto-play-option" data-spins="100">100 Spins</button>
+          </div>
+          <p class="auto-play-info">Auto-play will stop on big wins (3x+ bet) or if balance is insufficient.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Paytable Modal -->
+    <div id="paytableModal" class="modal">
+      <div class="modal-content paytable-modal">
+        <div class="modal-header">
+          <h2>Paytable</h2>
+          <button class="modal-close" data-modal="paytableModal">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="paytable-section">
+            <h3>High-Value Symbols</h3>
+            <div class="paytable-grid" id="highValueSymbols">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <div class="paytable-section">
+            <h3>Letter Symbols</h3>
+            <div class="paytable-grid" id="letterSymbols">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <div class="paytable-section">
+            <h3>Special Symbols</h3>
+            <div class="paytable-special" id="specialSymbols">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <div class="paytable-info">
+            <p><strong>How to Win:</strong> Match 3 or more identical symbols on any of the 25 paylines from left to right.</p>
+            <p><strong>Big Win:</strong> Wins of 3x your bet or more trigger a special celebration!</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- 🔊 Sound effects (must be BEFORE the script) -->
+  <audio id="zapSfx" preload="auto">
+    <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YRAAAAAA////AP//AP//AP//AP//AP//AP//AP//AP//AP//AAAAAP//AP//AP//AP//AAAAAP//AP//AAAA" type="audio/wav">
+  </audio>
+
+  <audio id="spinSfx" preload="auto">
+    <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YRAAAAAAAP//AAAAAP//AAAAAP//AAAA" type="audio/wav">
+  </audio>
+
+  <!-- Script LAST -->
+  <script src="LayeredZylo.js"></script>
+  <script src="game.js"></script>
+  <script>
+    // Find all shooting stars
+    const stars = document.querySelectorAll('.shooting-star');
+
+    // Reposition them randomly across the top every time they restart
+    stars.forEach(star => {
+      star.addEventListener('animationiteration', () => {
+        const randomLeft = Math.floor(Math.random() * 100); // 0% to 100%
+        star.style.left = `${randomLeft}%`;
+      });
+    });
+  </script>
+  <script>
+const galaxy = document.getElementById("galaxy");
+const ctx = galaxy.getContext("2d");
+
+function resizeGalaxy() {
+  galaxy.width = window.innerWidth;
+  galaxy.height = window.innerHeight;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+resizeGalaxy();
+window.addEventListener("resize", resizeGalaxy);
+
+// galaxy generation — star count reduced from 200 to 60 to cut per-frame
+// draw calls on lower-end machines. Bonus rounds hide the main stage so
+// they were never affected by this.
+const STAR_COUNT = 60;
+const galaxyStars = [];
+
+for (let i = 0; i < STAR_COUNT; i++) {
+  galaxyStars.push({
+    x: Math.random() * galaxy.width,
+    y: Math.random() * galaxy.height,
+    size: Math.random() * 1.3 + 0.3,
+    alpha: Math.random(),
+    twinkleSpeed: Math.random() * 0.02 + 0.005,
+
+    // MUCH SLOWER + MORE HORIZONTAL
+    vx: -(Math.random() * 0.15 + 0.05),  // gentle left drift
+    vy:  (Math.random() * 0.10 + 0.02),  // very slow downward drift
+  });
+}
+
+function animateGalaxy() {
+  ctx.clearRect(0, 0, galaxy.width, galaxy.height);
+
+  for (let star of galaxyStars) {
+
+    // ⭐ Strong twinkling
+    star.alpha += star.twinkleSpeed * (Math.random() < 0.5 ? -1 : 1);
+    star.alpha = Math.min(Math.max(star.alpha, 0.2), 1);
+
+    // ⭐ Very visible diagonal movement
+    star.x += star.vx;
+    star.y += star.vy;
+
+    // ⭐ Wrap around
+    if (star.y > galaxy.height) star.y = 0;
+    if (star.x < 0) star.x = galaxy.width;
+
+    ctx.fillStyle = `rgba(255,255,255,${star.alpha})`;
+    ctx.beginPath();
+    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  requestAnimationFrame(animateGalaxy);
+}
+
+animateGalaxy();
+  </script>
+  <!-- DEV PANEL -->
+  <!-- place near bottom of <body> for quick debug controls -->
+  <!-- FREE SPINS TRIGGER SEQUENCE (warp stars + green ground scene) -->
+  <canvas id='fsWarpStars'></canvas>
+  <div id='fsGroundScene'></div>
+  <div id='fsActivationFlash'></div>
+  <div id='fsActivatedText'>
+    <div class="fs-burst-ring"></div>
+    <div class="fs-activated-inner">
+      <img class="fs-activated-star fs-activated-star-left" src="img/symbols/scatter.png" alt="">
+      <span class="fs-activated-words">FREE SPINS<br>ACTIVATED</span>
+      <img class="fs-activated-star fs-activated-star-right" src="img/symbols/scatter.png" alt="">
+    </div>
+  </div>
+
+  <!-- JACKPOT TRIGGER SEQUENCE (gold warp + jackpot planet scene) -->
+  <div id='jpGroundScene'></div>
+  <div id='jpActivationFlash'></div>
+  <div id='jpActivatedText'>
+    <div class="jp-burst-ring"></div>
+    <div class="jp-activated-inner">
+      <img class="jp-activated-star jp-activated-star-left" src="img/symbols/jackpotPlanet.png" alt="">
+      <span class="jp-activated-words">JACKPOT!</span>
+      <img class="jp-activated-star jp-activated-star-right" src="img/symbols/jackpotPlanet.png" alt="">
+    </div>
+  </div>
+
+  <!-- FREE SPINS BANNER -->
+  <div id='freeSpinsBanner'>FREE SPINS: <span id='freeSpinsCount'>0</span> remaining • <span id='freeSpinsWin'>$0.00</span> won</div>
+
+  <!-- FREE SPINS TOTAL WON CELEBRATION (shown right before returning to normal play) -->
+  <div id='fsTotalWinOverlay'>
+    <div class="fs-total-win-label">TOTAL WON</div>
+    <div class="fs-total-win-amount" id="fsTotalWinAmount">$0.00</div>
+  </div>
+
+  <!-- DEV MODE PANEL: hidden mount, built and toggled by game.js (Ctrl+Shift+D) -->
+  <div id="devPanel" style="display:none;"></div>
+</body>
+</html>

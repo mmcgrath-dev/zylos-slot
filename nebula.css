@@ -1,0 +1,249 @@
+/* ============================================================
+   NEBULA — layout and drift for the canvas version
+   ------------------------------------------------------------
+   Load AFTER style.css:
+     <link rel="stylesheet" href="style.css" />
+     <link rel="stylesheet" href="nebula.css" />
+     ... <script src="nebula.js"></script>
+
+   Two things worth knowing before you tune anything:
+
+   1. DRIFT IS A SCROLLING TRACK, NOT A BACK-AND-FORTH TWEEN.
+      The old keyframes went from translate(-Xvw) to translate(+Xvw)
+      with ease-in-out alternate, which means the cloud spent half of
+      every cycle travelling LEFT TO RIGHT — against the starfield —
+      and eased to a dead stop twice per cycle. No amount of duration
+      tuning fixes that; the shape of the animation was wrong.
+
+      Now each band holds a track twice its own width containing two
+      identical panels. The track animates translate3d(0) to
+      translate3d(-50%), linear, infinite. When it wraps, panel 2 is
+      already exactly where panel 1 was, so motion is continuous,
+      constant-speed, and always right-to-left. nebula.js fades the
+      cloud to zero alpha at both horizontal texture edges, so the
+      join lands on empty sky and there is no seam to see.
+
+   2. Z-INDEX MATTERS HERE. .space-bg is opaque (#020018) and sits at
+      z-index 0. The sky therefore has to be at z-index 1 — above that
+      backdrop, below #app at z-index 2. #galaxy is also z-index 1 but
+      is a transparent canvas, so it simply draws on top. If the
+      nebula ever vanishes, this is the first thing to check.
+
+   Speeds are roughly one-sixth of the starfield (spaceDrift, 500px /
+   40s) so the layers separate in depth. Front is FASTEST — nearer
+   things move more.
+   ============================================================ */
+
+.nebula-sky {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+  contain: paint;
+
+  /* ---- occasional pass, not a permanent fixture ----
+     Default state (no .is-active) is parked fully off-screen to the
+     right and invisible, so the nebula is normally not present at
+     all. nebula-cycle.js waits a (randomized) delay, then sets the
+     --neb-* custom properties below for this pass and adds
+     .is-active, which runs nebulaCross: enter from the right, cross
+     in --neb-cross-duration, exit past the left edge, with a fade at
+     both ends. Translate is listed before scale/rotate in the
+     transform so the vw travel distance is real screen distance, not
+     shrunk by the scale.
+
+     --neb-scale/--neb-peak-opacity/--neb-y-base/--neb-drift-y/
+     --neb-rotate are randomized per pass by nebula-cycle.js (see
+     "each pass slightly different" below); the defaults here only
+     matter if this element is ever activated without that script. */
+  opacity: 0;
+  transform: translate3d(150vw, var(--neb-y-base, 0px), 0) scale(var(--neb-scale, 0.85));
+
+  /* Soft edge fade so the sky's own box boundary is never a visible
+     straight/rectangular edge as it travels across the viewport. */
+  mask-image: radial-gradient(ellipse 62% 58% at 50% 42%, #000 0%, rgba(0,0,0,.7) 45%, transparent 82%);
+  -webkit-mask-image: radial-gradient(ellipse 62% 58% at 50% 42%, #000 0%, rgba(0,0,0,.7) 45%, transparent 82%);
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+}
+
+:root {
+  --neb-cross-duration: 130s; /* time for one full right-to-left pass */
+  --neb-scale: 0.85;          /* overall size of the pass (~0.85 = big, was ~0.5) */
+  --neb-peak-opacity: 0.8;    /* opacity while fully on-screen */
+  --neb-y-base: 0px;          /* per-pass starting vertical offset */
+  --neb-drift-y: 14px;        /* amplitude of the gentle in-pass vertical wander */
+  --neb-rotate: 0.8deg;       /* amplitude of the gentle in-pass rotation */
+}
+
+.nebula-sky.is-active {
+  /* linear is load-bearing: the OLD ease-in-out re-eased around every
+     one of the keyframe waypoints below, decelerating and
+     re-accelerating ~6 times per pass — that periodic slow-down was
+     the entire "stop/go" feel. The X-translate values at each stop
+     are already evenly spaced (constant vw per % of duration), so
+     linear timing makes the crossing genuinely constant-speed with
+     no pause, snap, or hitch. The Y/scale/rotate wander stays smooth
+     because it's traced through enough closely-spaced stops that a
+     linear interpolation between them approximates a smooth curve —
+     it does NOT rely on eased timing the way the old version did. */
+  animation: nebulaCross var(--neb-cross-duration) linear forwards;
+}
+
+@keyframes nebulaCross {
+  0%   {
+    opacity: 0;
+    transform: translate3d(150vw, var(--neb-y-base), 0)
+               scale(var(--neb-scale))
+               rotate(0deg);
+  }
+  8%   { opacity: var(--neb-peak-opacity); }
+  20%  {
+    transform: translate3d(90vw, calc(var(--neb-y-base) + var(--neb-drift-y) * 0.59), 0)
+               scale(var(--neb-scale))
+               rotate(calc(var(--neb-rotate) * 0.35));
+  }
+  40%  {
+    transform: translate3d(30vw, calc(var(--neb-y-base) + var(--neb-drift-y) * 0.95), 0)
+               scale(var(--neb-scale))
+               rotate(calc(var(--neb-rotate) * 0.85));
+  }
+  60%  {
+    transform: translate3d(-30vw, calc(var(--neb-y-base) + var(--neb-drift-y) * 0.95), 0)
+               scale(var(--neb-scale))
+               rotate(calc(var(--neb-rotate) * 1));
+  }
+  80%  {
+    transform: translate3d(-90vw, calc(var(--neb-y-base) + var(--neb-drift-y) * 0.59), 0)
+               scale(var(--neb-scale))
+               rotate(calc(var(--neb-rotate) * 0.6));
+  }
+  92%  { opacity: var(--neb-peak-opacity); }
+  100% {
+    opacity: 0;
+    transform: translate3d(-150vw, var(--neb-y-base), 0)
+               scale(var(--neb-scale))
+               rotate(calc(var(--neb-rotate) * 0.1));
+  }
+}
+
+/* The internal scroll tracks used to run 24/7. They now only need to
+   move during the few seconds the sky is actually visible, so pause
+   them while parked and let them run (at their existing slow speeds)
+   only during an active pass. Nothing else about the tracks changes. */
+.nebula-sky:not(.is-active) .nebula-track {
+  animation-play-state: paused;
+}
+
+/* ---------------- bands ----------------
+   Each band is wider than the viewport so a panel is more than one
+   screen across and the cloud has somewhere to drift from. */
+
+.nebula-band {
+  position: absolute;
+  opacity: 0;
+  transition: opacity 1.4s ease;
+  will-change: opacity;
+}
+
+.nebula-band.is-ready { opacity: 1; }
+
+.nebula-track {
+  position: absolute;
+  inset: 0;
+  width: 200%;
+  display: flex;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+}
+
+.nebula-panel {
+  position: relative;
+  width: 50%;
+  height: 100%;
+  flex: 0 0 50%;
+}
+
+.nebula-panel canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Stars sit above their own cloud so points are not veiled by it. */
+.neb-cloud { z-index: 0; }
+.neb-stars { z-index: 1; }
+
+/* ---------------- placement ----------------
+   Kept in the upper two-thirds. The reels, Zylo and the planets own
+   the centre and lower screen; the sky should never compete there. */
+
+.neb-back {
+  left: -46vw;
+  top: 0;
+  width: 192vw;
+  height: 66vh;
+}
+
+.neb-mid {
+  left: -34vw;
+  top: 4vh;
+  width: 168vw;
+  height: 58vh;
+}
+
+.neb-front {
+  left: -22vw;
+  top: 10vh;
+  width: 144vw;
+  height: 48vh;
+}
+
+/* ---------------- drift ----------------
+   Linear and infinite. Do not add easing and do not add `alternate`. */
+
+@keyframes nebScroll {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+
+.neb-back  .nebula-track { animation: nebScroll 880s linear infinite; }
+.neb-mid   .nebula-track { animation: nebScroll 700s linear infinite; }
+.neb-front .nebula-track { animation: nebScroll 560s linear infinite; }
+
+/* ---------------- phones ---------------- */
+
+@media (max-width: 480px) {
+  .neb-back {
+    left: -30vw;
+    width: 160vw;
+    height: 46vh;
+    opacity: 0;
+  }
+  .neb-back.is-ready  { opacity: 0.72; }
+
+  .neb-mid {
+    left: -24vw;
+    width: 148vw;
+    height: 40vh;
+  }
+  .neb-mid.is-ready   { opacity: 0.82; }
+
+  /* nebula.js already drops the front layer below 480px, this is only
+     a guard in case it is initialised manually. */
+  .neb-front { display: none; }
+}
+
+/* ---------------- reduced motion ---------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .nebula-track { animation: none !important; }
+  .nebula-band { transition: none; }
+  .nebula-sky.is-active { animation: none !important; }
+}
+
+
